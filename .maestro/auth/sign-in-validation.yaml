@@ -1,6 +1,4 @@
 appId: com.jazzrihal.Fotuu
-env:
-  EMAIL: "e2e@fotuu.com"
 ---
 - launchApp:
     clearState: true
@@ -14,7 +12,7 @@ env:
 # Wrong password — should show Supabase error
 - tapOn:
     id: "sign-in-email"
-- inputText: ${EMAIL}
+- inputText: ${E2E_EMAIL}
 - tapOn:
     id: "sign-in-password"
 - inputText: "wrongpassword"
