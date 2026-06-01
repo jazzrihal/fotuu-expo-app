@@ -56,4 +56,4 @@ jobs:
         run: npm ci
 
       - name: Compile E2E iOS app
-        run: npm run build:e2e:ios
+        run: npm run build:e2e:ios -- --device generic --output ./build/ios-e2e
