@@ -21,11 +21,12 @@ Read the exact versioned docs at https://docs.expo.dev/versions/v56.0.0/ before 
 
 1. `cp .env.example .env`
 2. After `supabase start`, run `npx supabase status` and set `EXPO_PUBLIC_SUPABASE_LOCAL_URL` and `EXPO_PUBLIC_SUPABASE_LOCAL_PUBLISHABLE_KEY` in `.env` (local keys are **not** the long-lived JWT in `.env.example`; they look like `sb_publishable_…`).
-3. E2E Maestro flows expect `e2e@fotuu.com` / `Password123!` in the Supabase project (create via Studio or Auth API if missing).
+3. E2E Maestro flows sign in with seed user `alice@example.com` / `fotuu-local-dev` from `fotuu-supabase-backend` (defined in each flow’s `env` block; run `supabase db reset` in the backend repo if auth tests fail after a reset).
 
 ### Lint / typecheck / tests
 
 - **Typecheck:** `npx tsc --noEmit`
+- **DB types:** `npm run gen:types` (requires local Supabase in sibling `../fotuu-supabase-backend` with migrations applied)
 - **Lint:** `npm run lint` (`expo lint`). This repo has `eslint.config.js` but ESLint may not be in `package.json` until you run `npx expo install eslint eslint-config-expo -- --save-dev` (README). Pre-existing lint issues: `react/no-unescaped-entities` in sign-in / home screens.
 - **E2E:** `npm run test:e2e` (Maestro; needs a release dev build and simulator/device).
 

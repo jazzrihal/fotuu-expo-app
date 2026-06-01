@@ -1,7 +1,8 @@
 appId: com.jazzrihal.Fotuu
+# fotuu-supabase-backend supabase/seed.sql — survives `supabase db reset`
 env:
-  EMAIL: "e2e@fotuu.com"
-  PASSWORD: "Password123!"
+  E2E_EMAIL: ${E2E_EMAIL || "alice@example.com"}
+  E2E_PASSWORD: ${E2E_PASSWORD || "fotuu-local-dev"}
 ---
 - launchApp:
     clearState: true
@@ -9,10 +10,10 @@ env:
     id: "sign-in-email"
 - tapOn:
     id: "sign-in-email"
-- inputText: ${EMAIL}
+- inputText: ${E2E_EMAIL}
 - tapOn:
     id: "sign-in-password"
-- inputText: ${PASSWORD}
+- inputText: ${E2E_PASSWORD}
 - tapOn:
     id: "sign-in-button"
 - runFlow:
