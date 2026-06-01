@@ -26,6 +26,7 @@ Read the exact versioned docs at https://docs.expo.dev/versions/v56.0.0/ before 
 ### Lint / typecheck / tests
 
 - **Typecheck:** `npx tsc --noEmit`
+- **DB types:** `npm run gen:types` (requires local Supabase in sibling `../fotuu-supabase-backend` with migrations applied)
 - **Lint:** `npm run lint` (`expo lint`). This repo has `eslint.config.js` but ESLint may not be in `package.json` until you run `npx expo install eslint eslint-config-expo -- --save-dev` (README). Pre-existing lint issues: `react/no-unescaped-entities` in sign-in / home screens.
 - **E2E:** `npm run test:e2e` (Maestro; needs a release dev build and simulator/device).
 
