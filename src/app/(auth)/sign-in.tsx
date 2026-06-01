@@ -52,6 +52,7 @@ export default function SignIn() {
               Email
             </Text>
             <TextInput
+              testID="sign-in-email"
               value={email}
               onChangeText={setEmail}
               autoCapitalize="none"
@@ -78,6 +79,7 @@ export default function SignIn() {
               Password
             </Text>
             <TextInput
+              testID="sign-in-password"
               value={password}
               onChangeText={setPassword}
               secureTextEntry
@@ -99,12 +101,13 @@ export default function SignIn() {
           </View>
 
           {error && (
-            <Text selectable style={{ fontSize: 14, color: '#DC2626' }}>
+            <Text testID="sign-in-error" selectable style={{ fontSize: 14, color: '#DC2626' }}>
               {error}
             </Text>
           )}
 
           <Pressable
+            testID="sign-in-button"
             onPress={handleSignIn}
             disabled={loading}
             style={({ pressed }) => ({
@@ -131,7 +134,7 @@ export default function SignIn() {
           <Text style={{ color: '#6B7280', fontSize: 14 }}>
             Don't have an account?
           </Text>
-          <Link replace href="/(auth)/sign-up">
+          <Link testID="sign-in-link-to-sign-up" replace href="/(auth)/sign-up">
             <Text style={{ color: '#2563EB', fontSize: 14, fontWeight: '500' }}>
               Sign up
             </Text>

@@ -1,0 +1,7 @@
+appId: com.jazzrihal.Fotuu
+---
+- runFlow: sign-in.yaml
+- tapOn:
+    id: "sign-out-button"
+- assertVisible:
+    id: "sign-in-email"

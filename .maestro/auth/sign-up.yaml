@@ -1,0 +1,33 @@
+appId: com.jazzrihal.Fotuu
+env:
+  NEW_EMAIL: "e2e-new@fotuu.com"
+  NEW_PASSWORD: "Password123!"
+---
+- launchApp:
+    clearState: true
+- assertVisible:
+    id: "sign-in-email"
+- tapOn:
+    id: "sign-in-link-to-sign-up"
+- assertVisible:
+    id: "sign-up-email"
+- tapOn:
+    id: "sign-up-email"
+- inputText: ${NEW_EMAIL}
+# Tap password — Strong Password dialog blocks all but the first character
+- tapOn:
+    id: "sign-up-password"
+- inputText: "x"
+# Move to confirm field — this dismisses the dialog
+- tapOn:
+    id: "sign-up-confirm-password"
+- inputText: ${NEW_PASSWORD}
+# Return to password, clear the placeholder char, type the full password
+- tapOn:
+    id: "sign-up-password"
+- eraseText: 1
+- inputText: ${NEW_PASSWORD}
+- tapOn:
+    id: "sign-up-button"
+- assertVisible:
+    id: "home-user-email"

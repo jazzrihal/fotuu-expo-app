@@ -13,7 +13,7 @@ export default function Home() {
           <Text style={{ fontSize: 20, fontWeight: '600' }}>
             You're signed in
           </Text>
-          <Text selectable style={{ fontSize: 15, color: '#6B7280' }}>
+          <Text testID="home-user-email" selectable style={{ fontSize: 15, color: '#6B7280' }}>
             {session?.user.email}
           </Text>
           <Text style={{ fontSize: 14, color: '#9CA3AF', marginTop: 8 }}>

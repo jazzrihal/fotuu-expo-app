@@ -1,0 +1,10 @@
+appId: com.jazzrihal.Fotuu
+flows:
+  - "auth/*"
+executionOrder:
+  continueOnFailure: false
+  flowsOrder:
+    - sign-in
+    - sign-in-validation
+    - sign-out
+    - sign-up
