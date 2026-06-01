@@ -46,7 +46,7 @@ export default function SignUp() {
 
   if (needsConfirmation) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24, gap: 16 }}>
+      <View testID="sign-up-confirmation" style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24, gap: 16 }}>
         <Text style={{ fontSize: 48 }}>📬</Text>
         <Text style={{ fontSize: 24, fontWeight: '700', textAlign: 'center' }}>
           Check your email
@@ -89,6 +89,7 @@ export default function SignUp() {
               Email
             </Text>
             <TextInput
+              testID="sign-up-email"
               value={email}
               onChangeText={setEmail}
               autoCapitalize="none"
@@ -115,6 +116,7 @@ export default function SignUp() {
               Password
             </Text>
             <TextInput
+              testID="sign-up-password"
               value={password}
               onChangeText={setPassword}
               secureTextEntry
@@ -139,6 +141,7 @@ export default function SignUp() {
               Confirm password
             </Text>
             <TextInput
+              testID="sign-up-confirm-password"
               value={confirmPassword}
               onChangeText={setConfirmPassword}
               secureTextEntry
@@ -160,12 +163,13 @@ export default function SignUp() {
           </View>
 
           {error && (
-            <Text selectable style={{ fontSize: 14, color: '#DC2626' }}>
+            <Text testID="sign-up-error" selectable style={{ fontSize: 14, color: '#DC2626' }}>
               {error}
             </Text>
           )}
 
           <Pressable
+            testID="sign-up-button"
             onPress={handleSignUp}
             disabled={loading}
             style={({ pressed }) => ({
@@ -192,7 +196,7 @@ export default function SignUp() {
           <Text style={{ color: '#6B7280', fontSize: 14 }}>
             Already have an account?
           </Text>
-          <Link replace href="/(auth)/sign-in">
+          <Link testID="sign-up-link-to-sign-in" replace href="/(auth)/sign-in">
             <Text style={{ color: '#2563EB', fontSize: 14, fontWeight: '500' }}>
               Sign in
             </Text>

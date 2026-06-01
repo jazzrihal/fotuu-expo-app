@@ -16,7 +16,7 @@ export default function AppLayout() {
         headerLargeTitle: true,
         headerBackButtonDisplayMode: 'minimal',
         headerRight: () => (
-          <Pressable onPress={signOut} hitSlop={8}>
+          <Pressable testID="sign-out-button" onPress={signOut} hitSlop={8}>
             <Text style={{ color: '#2563EB', fontSize: 16 }}>Sign out</Text>
           </Pressable>
         ),

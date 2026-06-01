@@ -1,0 +1,24 @@
+appId: com.jazzrihal.Fotuu
+env:
+  EMAIL: "e2e@fotuu.com"
+---
+- launchApp:
+    clearState: true
+
+# Empty fields — should show validation error
+- tapOn:
+    id: "sign-in-button"
+- assertVisible:
+    id: "sign-in-error"
+
+# Wrong password — should show Supabase error
+- tapOn:
+    id: "sign-in-email"
+- inputText: ${EMAIL}
+- tapOn:
+    id: "sign-in-password"
+- inputText: "wrongpassword"
+- tapOn:
+    id: "sign-in-button"
+- assertVisible:
+    id: "sign-in-error"
