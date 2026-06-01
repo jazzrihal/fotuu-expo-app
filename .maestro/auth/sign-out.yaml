@@ -1,6 +1,10 @@
 appId: com.jazzrihal.Fotuu
 ---
-- runFlow: sign-in.yaml
+- runFlow:
+    file: sign-in.yaml
+    env:
+      E2E_EMAIL: "alice@example.com"
+      E2E_PASSWORD: "fotuu-local-dev"
 - tapOn:
     id: "sign-out-button"
 - assertVisible:

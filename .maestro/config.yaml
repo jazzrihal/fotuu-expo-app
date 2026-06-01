@@ -1,8 +1,4 @@
 appId: com.jazzrihal.Fotuu
-# Matches fotuu-supabase-backend supabase/seed.sql (survives `supabase db reset`)
-env:
-  E2E_EMAIL: "alice@example.com"
-  E2E_PASSWORD: "fotuu-local-dev"
 flows:
   - "auth/*"
 executionOrder:

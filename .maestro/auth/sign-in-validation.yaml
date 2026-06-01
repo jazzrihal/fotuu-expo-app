@@ -1,4 +1,6 @@
 appId: com.jazzrihal.Fotuu
+env:
+  E2E_EMAIL: ${E2E_EMAIL || "alice@example.com"}
 ---
 - launchApp:
     clearState: true

@@ -1,4 +1,8 @@
 appId: com.jazzrihal.Fotuu
+# fotuu-supabase-backend supabase/seed.sql — survives `supabase db reset`
+env:
+  E2E_EMAIL: ${E2E_EMAIL || "alice@example.com"}
+  E2E_PASSWORD: ${E2E_PASSWORD || "fotuu-local-dev"}
 ---
 - launchApp:
     clearState: true

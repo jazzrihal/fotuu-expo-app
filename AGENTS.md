@@ -21,7 +21,7 @@ Read the exact versioned docs at https://docs.expo.dev/versions/v56.0.0/ before 
 
 1. `cp .env.example .env`
 2. After `supabase start`, run `npx supabase status` and set `EXPO_PUBLIC_SUPABASE_LOCAL_URL` and `EXPO_PUBLIC_SUPABASE_LOCAL_PUBLISHABLE_KEY` in `.env` (local keys are **not** the long-lived JWT in `.env.example`; they look like `sb_publishable_…`).
-3. E2E Maestro flows sign in with seed user `alice@example.com` / `fotuu-local-dev` from `fotuu-supabase-backend` (see `.maestro/config.yaml`; run `supabase db reset` in the backend repo if auth tests fail after a reset).
+3. E2E Maestro flows sign in with seed user `alice@example.com` / `fotuu-local-dev` from `fotuu-supabase-backend` (defined in each flow’s `env` block; run `supabase db reset` in the backend repo if auth tests fail after a reset).
 
 ### Lint / typecheck / tests
 
