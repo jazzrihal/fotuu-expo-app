@@ -23,7 +23,13 @@ In the output, you'll find options to open the app in a
 - [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
 - [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+You can start developing by editing the files inside the **src/app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+
+## CI and E2E
+
+Pull requests run the iOS E2E workflow when app/build inputs, Maestro flows, or the iOS E2E workflow files change. The workflow compiles a release E2E iOS app on `macos-26` when source/build inputs changed or no reusable artifact exists; otherwise it reuses the latest matching `ios-e2e-app` artifact and runs Maestro against that build.
+
+The E2E job resets the dedicated hosted Supabase test project from the backend migrations and seed data before running Maestro. If a build or E2E check fails, inspect the GitHub Actions logs, fix the failure, push the branch, and rerun until the relevant PR checks pass.
 
 ## Get a fresh project
 
