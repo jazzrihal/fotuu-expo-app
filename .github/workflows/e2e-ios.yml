@@ -1,0 +1,192 @@
+name: iOS E2E
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/e2e-ios-compile.yml"
+      - ".github/workflows/e2e-ios.yml"
+      - ".github/scripts/**"
+      - ".maestro/**"
+      - "app.config.js"
+      - "app.config.ts"
+      - "app.json"
+      - "assets/**"
+      - "babel.config.js"
+      - "babel.config.json"
+      - "index.js"
+      - "metro.config.js"
+      - "metro.config.json"
+      - "package-lock.json"
+      - "package.json"
+      - "src/**"
+      - "tsconfig.json"
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: ios-e2e-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  resolve-ios-e2e-app:
+    name: Resolve iOS E2E app artifact
+    runs-on: ubuntu-latest
+    outputs:
+      should_run: ${{ steps.resolve.outputs.should_run }}
+      should_compile: ${{ steps.resolve.outputs.should_compile }}
+      artifact_run_id: ${{ steps.resolve.outputs.artifact_run_id }}
+      artifact_source_sha: ${{ steps.resolve.outputs.artifact_source_sha }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+
+      - name: Resolve reusable E2E app artifact
+        id: resolve
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CURRENT_SHA: ${{ github.event.pull_request.head.sha }}
+          CURRENT_BRANCH: ${{ github.event.pull_request.head.ref }}
+          REPOSITORY: ${{ github.repository }}
+        run: python3 .github/scripts/resolve-ios-e2e-artifact.py
+
+  compile-ios-e2e:
+    name: Compile iOS E2E app
+    needs: resolve-ios-e2e-app
+    if: needs.resolve-ios-e2e-app.outputs.should_run == 'true' && needs.resolve-ios-e2e-app.outputs.should_compile == 'true'
+    uses: ./.github/workflows/e2e-ios-compile.yml
+    permissions:
+      contents: read
+    secrets:
+      E2E_SUPABASE_URL: ${{ secrets.E2E_SUPABASE_URL }}
+      E2E_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.E2E_SUPABASE_PUBLISHABLE_KEY }}
+
+  run-ios-e2e:
+    name: Run iOS Maestro E2E
+    runs-on: macos-26
+    timeout-minutes: 30
+    needs:
+      - resolve-ios-e2e-app
+      - compile-ios-e2e
+    if: always() && needs.resolve-ios-e2e-app.result == 'success' && needs.resolve-ios-e2e-app.outputs.should_run == 'true' && (needs.resolve-ios-e2e-app.outputs.should_compile == 'false' || needs.compile-ios-e2e.result == 'success')
+    concurrency:
+      group: ios-e2e-remote-test-db
+      cancel-in-progress: false
+    env:
+      CI: "true"
+      MAESTRO_DRIVER_STARTUP_TIMEOUT: "120000"
+      E2E_EMAIL: "alice@example.com"
+      E2E_PASSWORD: "fotuu-local-dev"
+      E2E_SIGN_UP_EMAIL: "e2e-new@fotuu.com"
+      E2E_SIGN_UP_PASSWORD: "Password123!"
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Download E2E iOS app artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ios-e2e-app
+          path: artifacts
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          run-id: ${{ needs.resolve-ios-e2e-app.outputs.artifact_run_id }}
+
+      - name: Unpack E2E iOS app
+        run: |
+          set -euo pipefail
+          mkdir -p build
+          tar -xzf artifacts/ios-e2e-app.tar.gz -C build
+          APP_PATH="$(python3 <<'PY'
+          from pathlib import Path
+
+          apps = sorted(path for path in Path("build/ios-e2e").rglob("*.app") if path.is_dir())
+          if not apps:
+            raise SystemExit("No .app bundle found in downloaded iOS E2E artifact")
+          print(apps[0])
+          PY
+          )"
+          echo "Using app bundle: ${APP_PATH}"
+          {
+            echo "APP_PATH<<EOF"
+            echo "${APP_PATH}"
+            echo "EOF"
+          } >> "${GITHUB_ENV}"
+
+      - name: Install Maestro
+        run: |
+          set -euo pipefail
+          curl -fsSL "https://get.maestro.mobile.dev" | bash
+          echo "${HOME}/.maestro/bin" >> "${GITHUB_PATH}"
+
+      - name: Validate Supabase reset configuration
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.E2E_SUPABASE_DB_PASSWORD }}
+          E2E_SUPABASE_PROJECT_REF: ${{ secrets.E2E_SUPABASE_PROJECT_REF }}
+          E2E_SUPABASE_BACKEND_TOKEN: ${{ secrets.E2E_SUPABASE_BACKEND_TOKEN }}
+        run: |
+          set -euo pipefail
+          missing=()
+          for name in SUPABASE_ACCESS_TOKEN SUPABASE_DB_PASSWORD E2E_SUPABASE_PROJECT_REF E2E_SUPABASE_BACKEND_TOKEN; do
+            if [ -z "${!name:-}" ]; then
+              missing+=("${name}")
+            fi
+          done
+          if [ "${#missing[@]}" -gt 0 ]; then
+            printf 'Missing required Supabase reset configuration: %s\n' "${missing[*]}" >&2
+            exit 1
+          fi
+
+      - name: Check out Supabase backend
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ vars.E2E_SUPABASE_BACKEND_REPOSITORY || 'jazzrihal/fotuu-supabase-backend' }}
+          path: supabase-backend
+          token: ${{ secrets.E2E_SUPABASE_BACKEND_TOKEN }}
+
+      - name: Set up Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: 2.104.0
+
+      - name: Reset E2E Supabase database
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.E2E_SUPABASE_DB_PASSWORD }}
+          E2E_SUPABASE_PROJECT_REF: ${{ secrets.E2E_SUPABASE_PROJECT_REF }}
+        run: |
+          set -euo pipefail
+          supabase --workdir supabase-backend link \
+            --project-ref "${E2E_SUPABASE_PROJECT_REF}" \
+            --password "${SUPABASE_DB_PASSWORD}"
+          supabase --workdir supabase-backend db reset --linked --yes
+
+      - name: Create and boot iOS simulator
+        run: |
+          set -euo pipefail
+          SIMULATOR_UDID="$(python3 .github/scripts/create-ios-simulator.py)"
+          echo "SIMULATOR_UDID=${SIMULATOR_UDID}" >> "${GITHUB_ENV}"
+          xcrun simctl boot "${SIMULATOR_UDID}"
+          xcrun simctl bootstatus "${SIMULATOR_UDID}" -b
+
+      - name: Install app on simulator
+        run: |
+          set -euo pipefail
+          xcrun simctl install "${SIMULATOR_UDID}" "${APP_PATH}"
+
+      - name: Run Maestro E2E suite
+        run: maestro test .maestro/
+
+      - name: Delete iOS simulator
+        if: always() && env.SIMULATOR_UDID != ''
+        run: |
+          xcrun simctl shutdown "${SIMULATOR_UDID}" || true
+          xcrun simctl delete "${SIMULATOR_UDID}" || true

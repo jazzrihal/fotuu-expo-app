@@ -30,6 +30,16 @@ Read the exact versioned docs at https://docs.expo.dev/versions/v56.0.0/ before 
 - **Lint:** `npm run lint` (`expo lint`). This repo has `eslint.config.js` but ESLint may not be in `package.json` until you run `npx expo install eslint eslint-config-expo -- --save-dev` (README). Pre-existing lint issues: `react/no-unescaped-entities` in sign-in / home screens.
 - **E2E:** `npm run test:e2e` (Maestro; needs a release dev build and simulator/device).
 
+### Cloud agent completion checklist
+
+When a cloud agent changes code or CI:
+
+1. Create or update the PR for the working branch before handing off.
+2. Run the local checks that match the change, at minimum `npx tsc --noEmit` for app code and `go run github.com/rhysd/actionlint/cmd/actionlint@latest .github/workflows/*.yml` for workflow changes.
+3. Push the branch and follow the GitHub Actions checks with `gh run list --branch <branch>` and `gh run view <run-id> --json status,conclusion,jobs,url`.
+4. If the macOS build or iOS E2E workflow fails, inspect the failed job logs with `gh run view <run-id> --log-failed`, fix the failure, commit, push, and repeat until the relevant checks pass or the remaining failure is clearly outside the repo.
+5. For iOS E2E, expect the workflow to reset the hosted Supabase test project from the backend migrations/seed, compile or reuse the `ios-e2e-app` artifact as needed, boot a simulator, install the app, and run Maestro. Do not stop after only adding YAML; verify the run behavior.
+
 ### Web platform caveat
 
 `app.json` sets `"web": { "output": "static" }` and the app imports `expo-sqlite/localStorage/install` for Supabase session storage. **Expo web SSR often fails** with Metro unable to resolve `expo-sqlite/web/wa-sqlite/wa-sqlite.wasm` (HTTP 500 on http://localhost:8081). Prefer **native dev builds** or simulators for UI work; verify auth with Supabase Studio or the Auth API. Metro on port 8081 still serves native bundles for development builds.

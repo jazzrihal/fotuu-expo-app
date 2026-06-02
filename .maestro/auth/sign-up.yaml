@@ -1,7 +1,7 @@
 appId: com.jazzrihal.Fotuu
 env:
-  NEW_EMAIL: "e2e-new@fotuu.com"
-  NEW_PASSWORD: "Password123!"
+  NEW_EMAIL: ${E2E_SIGN_UP_EMAIL || "e2e-new@fotuu.com"}
+  NEW_PASSWORD: ${E2E_SIGN_UP_PASSWORD || "Password123!"}
 ---
 - launchApp:
     clearState: true
@@ -30,4 +30,4 @@ env:
 - tapOn:
     id: "sign-up-button"
 - assertVisible:
-    id: "home-user-email"
+    id: "sign-up-confirmation"
