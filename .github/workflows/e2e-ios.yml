@@ -36,6 +36,7 @@ jobs:
     name: Resolve iOS E2E app artifact
     runs-on: ubuntu-latest
     outputs:
+      should_run: ${{ steps.resolve.outputs.should_run }}
       should_compile: ${{ steps.resolve.outputs.should_compile }}
       artifact_run_id: ${{ steps.resolve.outputs.artifact_run_id }}
       artifact_source_sha: ${{ steps.resolve.outputs.artifact_source_sha }}
@@ -58,7 +59,7 @@ jobs:
   compile-ios-e2e:
     name: Compile iOS E2E app
     needs: resolve-ios-e2e-app
-    if: needs.resolve-ios-e2e-app.outputs.should_compile == 'true'
+    if: needs.resolve-ios-e2e-app.outputs.should_run == 'true' && needs.resolve-ios-e2e-app.outputs.should_compile == 'true'
     uses: ./.github/workflows/e2e-ios-compile.yml
     permissions:
       contents: read
@@ -73,7 +74,7 @@ jobs:
     needs:
       - resolve-ios-e2e-app
       - compile-ios-e2e
-    if: always() && needs.resolve-ios-e2e-app.result == 'success' && (needs.resolve-ios-e2e-app.outputs.should_compile == 'false' || needs.compile-ios-e2e.result == 'success')
+    if: always() && needs.resolve-ios-e2e-app.result == 'success' && needs.resolve-ios-e2e-app.outputs.should_run == 'true' && (needs.resolve-ios-e2e-app.outputs.should_compile == 'false' || needs.compile-ios-e2e.result == 'success')
     concurrency:
       group: ios-e2e-remote-test-db
       cancel-in-progress: false

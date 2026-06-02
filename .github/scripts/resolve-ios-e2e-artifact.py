@@ -68,6 +68,31 @@ def build_input_pathspecs() -> list[str]:
     return pathspecs
 
 
+def path_matches(pattern: str, path: str) -> bool:
+    if pattern.endswith("/**"):
+        prefix = pattern.removesuffix("/**")
+        return path == prefix or path.startswith(f"{prefix}/")
+    return path == pattern
+
+
+def latest_commit_changed_files(current_sha: str) -> list[str]:
+    parents = run("git", "show", "--no-patch", "--format=%P", current_sha).split()
+    if parents:
+        output = run("git", "diff", "--name-only", parents[0], current_sha)
+    else:
+        output = run("git", "diff-tree", "--no-commit-id", "--name-only", "-r", current_sha)
+    return [line for line in output.splitlines() if line]
+
+
+def latest_commit_relevant_files(current_sha: str) -> list[str]:
+    trigger_paths = workflow_trigger_paths()
+    return [
+        path
+        for path in latest_commit_changed_files(current_sha)
+        if any(path_matches(pattern, path) for pattern in trigger_paths)
+    ]
+
+
 def resolve_latest_artifact(repository: str, current_branch: str, current_run_id: str) -> dict | None:
     response = run(
         "gh",
@@ -110,6 +135,7 @@ def write_outputs(**outputs: str) -> None:
 
 def compile_with(current_run_id: str, artifact_source_sha: str = "") -> None:
     write_outputs(
+        should_run="true",
         should_compile="true",
         artifact_run_id=current_run_id,
         artifact_source_sha=artifact_source_sha,
@@ -121,6 +147,20 @@ def main() -> None:
     current_branch = env("CURRENT_BRANCH")
     current_run_id = env("GITHUB_RUN_ID")
     repository = env("REPOSITORY")
+
+    relevant_files = latest_commit_relevant_files(current_sha)
+    if not relevant_files:
+        print("Latest commit does not touch iOS E2E trigger paths; skipping compile and E2E jobs.")
+        write_outputs(
+            should_run="false",
+            should_compile="false",
+            artifact_run_id="",
+            artifact_source_sha="",
+        )
+        return
+
+    print("Latest commit touches iOS E2E trigger paths:")
+    print("\n".join(relevant_files))
 
     artifact = resolve_latest_artifact(repository, current_branch, current_run_id)
     if artifact is None:
@@ -145,6 +185,7 @@ def main() -> None:
 
     print(f"Reusing ios-e2e-app artifact {artifact_run_id} from {artifact_source_sha}.")
     write_outputs(
+        should_run="true",
         should_compile="false",
         artifact_run_id=artifact_run_id,
         artifact_source_sha=artifact_source_sha,
