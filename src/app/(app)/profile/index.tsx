@@ -2,17 +2,15 @@ import { ScrollView, Text, View } from 'react-native';
 import { Stack } from 'expo-router';
 import { useAuth } from '@/context/auth';
 
-export default function Home() {
+export default function Profile() {
   const { session } = useAuth();
 
   return (
     <>
-      <Stack.Screen options={{ title: 'Home' }} />
+      <Stack.Screen options={{ title: 'Profile' }} />
       <ScrollView contentInsetAdjustmentBehavior="automatic">
         <View style={{ padding: 24, gap: 12 }}>
-          <Text style={{ fontSize: 20, fontWeight: '600' }}>
-            You're signed in
-          </Text>
+          <Text style={{ fontSize: 20, fontWeight: '600' }}>Your account</Text>
           <Text testID="home-user-email" selectable style={{ fontSize: 15, color: '#6B7280' }}>
             {session?.user.email}
           </Text>

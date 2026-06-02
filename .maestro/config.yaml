@@ -1,6 +1,7 @@
 appId: com.jazzrihal.Fotuu
 flows:
   - "auth/*"
+  - "friends/*"
 executionOrder:
   continueOnFailure: false
   flowsOrder:
@@ -8,3 +9,6 @@ executionOrder:
     - sign-in-validation
     - sign-out
     - sign-up
+    - list
+    - search
+    - requests

@@ -21,5 +21,6 @@ env:
       visible: "Not Now"
     commands:
       - tapOn: "Not Now"
+- tapOn: "Profile"
 - assertVisible:
     id: "home-user-email"
