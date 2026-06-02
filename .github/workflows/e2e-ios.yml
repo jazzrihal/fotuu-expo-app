@@ -18,6 +18,9 @@ jobs:
     uses: ./.github/workflows/e2e-ios-compile.yml
     permissions:
       contents: read
+    secrets:
+      E2E_SUPABASE_URL: ${{ secrets.E2E_SUPABASE_URL }}
+      E2E_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.E2E_SUPABASE_PUBLISHABLE_KEY }}
 
   run-ios-e2e:
     name: Run iOS Maestro E2E
@@ -27,6 +30,10 @@ jobs:
     env:
       CI: "true"
       MAESTRO_DRIVER_STARTUP_TIMEOUT: "120000"
+      E2E_EMAIL: "alice@example.com"
+      E2E_PASSWORD: "fotuu-local-dev"
+      E2E_SIGN_UP_EMAIL: "e2e-new@fotuu.com"
+      E2E_SIGN_UP_PASSWORD: "Password123!"
 
     steps:
       - name: Check out repository
@@ -37,6 +44,9 @@ jobs:
         with:
           node-version: "22.13.x"
           cache: npm
+
+      - name: Install dependencies
+        run: npm ci
 
       - name: Download E2E iOS app artifact
         uses: actions/download-artifact@v4
@@ -70,6 +80,78 @@ jobs:
           set -euo pipefail
           curl -fsSL "https://get.maestro.mobile.dev" | bash
           echo "${HOME}/.maestro/bin" >> "${GITHUB_PATH}"
+
+      - name: Prepare Supabase Auth test users
+        env:
+          E2E_SUPABASE_URL: ${{ secrets.E2E_SUPABASE_URL }}
+          E2E_SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.E2E_SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const { createClient } = require('@supabase/supabase-js');
+
+          const required = [
+            'E2E_SUPABASE_URL',
+            'E2E_SUPABASE_SERVICE_ROLE_KEY',
+            'E2E_EMAIL',
+            'E2E_PASSWORD',
+            'E2E_SIGN_UP_EMAIL',
+          ];
+          const missing = required.filter((name) => !process.env[name]);
+          if (missing.length > 0) {
+            throw new Error(`Missing required environment variables: ${missing.join(', ')}`);
+          }
+
+          async function main() {
+            const supabase = createClient(
+              process.env.E2E_SUPABASE_URL,
+              process.env.E2E_SUPABASE_SERVICE_ROLE_KEY,
+              {
+                auth: {
+                  autoRefreshToken: false,
+                  persistSession: false,
+                },
+              },
+            );
+
+            async function findUserByEmail(email) {
+              const perPage = 1000;
+              for (let page = 1; ; page += 1) {
+                const { data, error } = await supabase.auth.admin.listUsers({ page, perPage });
+                if (error) throw error;
+
+                const user = data.users.find((candidate) => candidate.email === email);
+                if (user) return user;
+                if (data.users.length < perPage) return null;
+              }
+            }
+
+            async function deleteUserByEmail(email) {
+              const user = await findUserByEmail(email);
+              if (!user) return;
+
+              const { error } = await supabase.auth.admin.deleteUser(user.id);
+              if (error) throw error;
+            }
+
+            await deleteUserByEmail(process.env.E2E_EMAIL);
+            await deleteUserByEmail(process.env.E2E_SIGN_UP_EMAIL);
+
+            const { error } = await supabase.auth.admin.createUser({
+              email: process.env.E2E_EMAIL,
+              password: process.env.E2E_PASSWORD,
+              email_confirm: true,
+            });
+            if (error) throw error;
+
+            console.log(`Prepared Supabase Auth users for ${process.env.E2E_EMAIL}`);
+          }
+
+          main().catch((error) => {
+            console.error(error);
+            process.exit(1);
+          });
+          NODE
 
       - name: Create and boot iOS simulator
         run: |

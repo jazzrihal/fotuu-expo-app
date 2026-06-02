@@ -2,6 +2,11 @@ name: Compile iOS E2E App
 
 on:
   workflow_call:
+    secrets:
+      E2E_SUPABASE_URL:
+        required: true
+      E2E_SUPABASE_PUBLISHABLE_KEY:
+        required: true
 
 permissions:
   contents: read
@@ -18,8 +23,8 @@ jobs:
     env:
       CI: "true"
       EXPO_NO_TELEMETRY: "1"
-      EXPO_PUBLIC_SUPABASE_LOCAL_URL: "http://127.0.0.1:54321"
-      EXPO_PUBLIC_SUPABASE_LOCAL_PUBLISHABLE_KEY: "sb_publishable_ci_placeholder"
+      EXPO_PUBLIC_SUPABASE_LOCAL_URL: ${{ secrets.E2E_SUPABASE_URL }}
+      EXPO_PUBLIC_SUPABASE_LOCAL_PUBLISHABLE_KEY: ${{ secrets.E2E_SUPABASE_PUBLISHABLE_KEY }}
 
     steps:
       - name: Check out repository
