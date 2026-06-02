@@ -7,6 +7,7 @@ on:
     paths:
       - ".github/workflows/e2e-ios-compile.yml"
       - ".github/workflows/e2e-ios.yml"
+      - ".github/scripts/**"
       - ".maestro/**"
       - "app/**"
       - "app.config.js"
@@ -72,7 +73,7 @@ jobs:
             echo "No previous ios-e2e-app artifact found for ${CURRENT_BRANCH}; compiling."
             {
               echo "should_compile=true"
-              echo "artifact_run_id="
+              echo "artifact_run_id=${GITHUB_RUN_ID}"
               echo "artifact_source_sha="
             } >> "${GITHUB_OUTPUT}"
             exit 0
@@ -85,7 +86,7 @@ jobs:
             echo "Previous artifact source ${artifact_source_sha} is not available locally; compiling."
             {
               echo "should_compile=true"
-              echo "artifact_run_id=${artifact_run_id}"
+              echo "artifact_run_id=${GITHUB_RUN_ID}"
               echo "artifact_source_sha=${artifact_source_sha}"
             } >> "${GITHUB_OUTPUT}"
             exit 0
@@ -115,6 +116,7 @@ jobs:
             echo "App/build inputs changed since artifact ${artifact_run_id}; compiling."
             printf '%s\n' "${changed_files}"
             should_compile=true
+            artifact_run_id="${GITHUB_RUN_ID}"
           else
             echo "Reusing ios-e2e-app artifact ${artifact_run_id} from ${artifact_source_sha}."
             should_compile=false
@@ -133,7 +135,6 @@ jobs:
     uses: ./.github/workflows/e2e-ios-compile.yml
     permissions:
       contents: read
-      actions: read
     secrets:
       E2E_SUPABASE_URL: ${{ secrets.E2E_SUPABASE_URL }}
       E2E_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.E2E_SUPABASE_PUBLISHABLE_KEY }}
@@ -161,24 +162,7 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "22.13.x"
-          cache: npm
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Download newly compiled E2E iOS app artifact
-        if: needs.resolve-ios-e2e-app.outputs.should_compile == 'true'
-        uses: actions/download-artifact@v4
-        with:
-          name: ios-e2e-app
-          path: artifacts
-
-      - name: Download reused E2E iOS app artifact
-        if: needs.resolve-ios-e2e-app.outputs.should_compile == 'false'
+      - name: Download E2E iOS app artifact
         uses: actions/download-artifact@v4
         with:
           name: ios-e2e-app
@@ -260,81 +244,7 @@ jobs:
       - name: Create and boot iOS simulator
         run: |
           set -euo pipefail
-          SIMULATOR_UDID="$(python3 <<'PY'
-          import json
-          import subprocess
-          import sys
-
-          runtimes_data = json.loads(subprocess.check_output(["xcrun", "simctl", "list", "runtimes", "available", "-j"]))
-          runtimes = [
-            runtime for runtime in runtimes_data["runtimes"]
-            if runtime.get("platform") == "iOS" and runtime.get("isAvailable", False)
-          ]
-          if not runtimes:
-            raise SystemExit("No available iOS simulator runtimes found")
-
-          def version_key(version):
-            parts = version.split(".")
-            return tuple(int(part) for part in parts if part.isdigit())
-
-          runtimes.sort(key=lambda runtime: version_key(runtime["version"]), reverse=True)
-          runtime = runtimes[0]
-
-          device_data = json.loads(subprocess.check_output(["xcrun", "simctl", "list", "devicetypes", "-j"]))
-          devices = [
-            device for device in device_data["devicetypes"]
-            if device["name"].startswith("iPhone")
-          ]
-          preferred_names = [
-            "iPhone 17",
-            "iPhone 17 Pro",
-            "iPhone 16",
-            "iPhone 16 Pro",
-            "iPhone 15",
-            "iPhone 15 Pro",
-            "iPhone 14",
-            "iPhone 14 Pro",
-          ]
-          candidates = []
-          for preferred_name in preferred_names:
-            candidates.extend(device for device in devices if device["name"] == preferred_name)
-          candidates.extend(
-            device for device in devices
-            if device not in candidates and "Max" not in device["name"]
-          )
-          candidates.extend(device for device in devices if device not in candidates)
-          if not candidates:
-            raise SystemExit("No iPhone simulator device types found")
-
-          for device in candidates:
-            try:
-              udid = subprocess.check_output(
-                [
-                  "xcrun",
-                  "simctl",
-                  "create",
-                  "Fotuu E2E iPhone",
-                  device["identifier"],
-                  runtime["identifier"],
-                ],
-                stderr=subprocess.STDOUT,
-                text=True,
-              ).strip()
-              print(
-                f"Created simulator {udid} using {device['name']} and {runtime['name']}",
-                file=sys.stderr,
-              )
-              print(udid)
-              break
-            except subprocess.CalledProcessError as error:
-              print(
-                f"Could not create {device['name']} for {runtime['name']}: {error.output.strip()}",
-                file=sys.stderr,
-              )
-          else:
-            raise SystemExit(f"No compatible iPhone simulator device type found for {runtime['name']}")
-          PY
-          )"
+          SIMULATOR_UDID="$(python3 .github/scripts/create-ios-simulator.py)"
           echo "SIMULATOR_UDID=${SIMULATOR_UDID}" >> "${GITHUB_ENV}"
           xcrun simctl boot "${SIMULATOR_UDID}"
           xcrun simctl bootstatus "${SIMULATOR_UDID}" -b
@@ -345,7 +255,7 @@ jobs:
           xcrun simctl install "${SIMULATOR_UDID}" "${APP_PATH}"
 
       - name: Run Maestro E2E suite
-        run: npm run test:e2e
+        run: maestro test .maestro/
 
       - name: Delete iOS simulator
         if: always() && env.SIMULATOR_UDID != ''
