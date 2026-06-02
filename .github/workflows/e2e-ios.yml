@@ -4,6 +4,25 @@ on:
   pull_request:
     branches:
       - main
+    paths:
+      - ".github/workflows/e2e-ios-compile.yml"
+      - ".github/workflows/e2e-ios.yml"
+      - ".maestro/**"
+      - "app/**"
+      - "app.config.js"
+      - "app.config.ts"
+      - "app.json"
+      - "assets/**"
+      - "babel.config.js"
+      - "babel.config.json"
+      - "index.js"
+      - "ios/**"
+      - "metro.config.js"
+      - "metro.config.json"
+      - "package-lock.json"
+      - "package.json"
+      - "src/**"
+      - "tsconfig.json"
 
 permissions:
   contents: read
