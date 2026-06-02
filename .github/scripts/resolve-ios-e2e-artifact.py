@@ -7,24 +7,12 @@ import subprocess
 from pathlib import Path
 
 
-BUILD_INPUT_PATHS = [
-    ".github/workflows/e2e-ios-compile.yml",
-    "app",
-    "app.config.js",
-    "app.config.ts",
-    "app.json",
-    "assets",
-    "babel.config.js",
-    "babel.config.json",
-    "index.js",
-    "ios",
-    "metro.config.js",
-    "metro.config.json",
-    "package-lock.json",
-    "package.json",
-    "src",
-    "tsconfig.json",
-]
+WORKFLOW_PATH = Path(".github/workflows/e2e-ios.yml")
+TEST_ONLY_PATHS = {
+    ".github/scripts/**",
+    ".github/workflows/e2e-ios.yml",
+    ".maestro/**",
+}
 
 
 def env(name: str) -> str:
@@ -36,6 +24,48 @@ def env(name: str) -> str:
 
 def run(*args: str) -> str:
     return subprocess.check_output(args, text=True).strip()
+
+
+def workflow_trigger_paths() -> list[str]:
+    lines = WORKFLOW_PATH.read_text(encoding="utf-8").splitlines()
+    for index, line in enumerate(lines):
+        if line.strip() != "paths:":
+            continue
+
+        paths_indent = len(line) - len(line.lstrip())
+        paths: list[str] = []
+        for child in lines[index + 1 :]:
+            if not child.strip():
+                continue
+            child_indent = len(child) - len(child.lstrip())
+            if child_indent <= paths_indent:
+                break
+
+            child = child.strip()
+            if not child.startswith("- "):
+                continue
+
+            value = child[2:].strip()
+            if len(value) >= 2 and value[0] == value[-1] and value[0] in {"'", '"'}:
+                value = value[1:-1]
+            paths.append(value)
+
+        if not paths:
+            raise SystemExit(f"No pull request paths found in {WORKFLOW_PATH}")
+        return paths
+
+    raise SystemExit(f"No paths block found in {WORKFLOW_PATH}")
+
+
+def build_input_pathspecs() -> list[str]:
+    pathspecs = []
+    for path in workflow_trigger_paths():
+        if path in TEST_ONLY_PATHS:
+            continue
+        if path.endswith("/**"):
+            path = path.removesuffix("/**")
+        pathspecs.append(path)
+    return pathspecs
 
 
 def resolve_latest_artifact(repository: str, current_branch: str, current_run_id: str) -> dict | None:
@@ -67,7 +97,7 @@ def commit_exists(sha: str) -> bool:
 
 
 def changed_build_inputs(source_sha: str, current_sha: str) -> list[str]:
-    output = run("git", "diff", "--name-only", source_sha, current_sha, "--", *BUILD_INPUT_PATHS)
+    output = run("git", "diff", "--name-only", source_sha, current_sha, "--", *build_input_pathspecs())
     return [line for line in output.splitlines() if line]
 
 

@@ -17,7 +17,6 @@ on:
       - "babel.config.js"
       - "babel.config.json"
       - "index.js"
-      - "ios/**"
       - "metro.config.js"
       - "metro.config.json"
       - "package-lock.json"
