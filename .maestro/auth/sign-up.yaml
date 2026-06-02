@@ -30,4 +30,4 @@ env:
 - tapOn:
     id: "sign-up-button"
 - assertVisible:
-    id: "home-user-email"
+    id: "sign-up-confirmation"
