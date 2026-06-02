@@ -200,10 +200,11 @@ jobs:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_DB_PASSWORD: ${{ secrets.E2E_SUPABASE_DB_PASSWORD }}
           E2E_SUPABASE_PROJECT_REF: ${{ secrets.E2E_SUPABASE_PROJECT_REF }}
+          E2E_SUPABASE_BACKEND_TOKEN: ${{ secrets.E2E_SUPABASE_BACKEND_TOKEN }}
         run: |
           set -euo pipefail
           missing=()
-          for name in SUPABASE_ACCESS_TOKEN SUPABASE_DB_PASSWORD E2E_SUPABASE_PROJECT_REF; do
+          for name in SUPABASE_ACCESS_TOKEN SUPABASE_DB_PASSWORD E2E_SUPABASE_PROJECT_REF E2E_SUPABASE_BACKEND_TOKEN; do
             if [ -z "${!name:-}" ]; then
               missing+=("${name}")
             fi
@@ -218,7 +219,7 @@ jobs:
         with:
           repository: ${{ vars.E2E_SUPABASE_BACKEND_REPOSITORY || 'jazzrihal/fotuu-supabase-backend' }}
           path: supabase-backend
-          token: ${{ secrets.E2E_SUPABASE_BACKEND_TOKEN || github.token }}
+          token: ${{ secrets.E2E_SUPABASE_BACKEND_TOKEN }}
 
       - name: Set up Supabase CLI
         uses: supabase/setup-cli@v1
