@@ -289,38 +289,34 @@ jobs:
       - name: Create and boot iOS simulator
         run: |
           set -euo pipefail
-          RUNTIME_ID="$(python3 <<'PY'
+          SIMULATOR_UDID="$(python3 <<'PY'
           import json
           import subprocess
 
-          data = json.loads(subprocess.check_output(["xcrun", "simctl", "list", "runtimes", "available", "-j"]))
-          runtimes = [
-            runtime for runtime in data["runtimes"]
-            if runtime.get("platform") == "iOS" and runtime.get("isAvailable", False)
-          ]
-          if not runtimes:
-            raise SystemExit("No available iOS simulator runtimes found")
-          runtimes.sort(key=lambda runtime: tuple(int(part) for part in runtime["version"].split(".")), reverse=True)
-          print(runtimes[0]["identifier"])
-          PY
-          )"
-          DEVICE_TYPE_ID="$(python3 <<'PY'
-          import json
-          import subprocess
+          data = json.loads(subprocess.check_output(["xcrun", "simctl", "list", "devices", "available", "-j"]))
 
-          data = json.loads(subprocess.check_output(["xcrun", "simctl", "list", "devicetypes", "-j"]))
-          devices = [
-            device for device in data["devicetypes"]
-            if device["name"].startswith("iPhone") and "Max" not in device["name"]
-          ]
-          if not devices:
-            raise SystemExit("No iPhone simulator device types found")
-          print(devices[-1]["identifier"])
+          def version_key(runtime_name):
+            parts = runtime_name.replace("iOS ", "").split(".")
+            return tuple(int(part) for part in parts if part.isdigit())
+
+          candidates = []
+          for runtime_name, devices in data["devices"].items():
+            if not runtime_name.startswith("iOS "):
+              continue
+            for device in devices:
+              name = device.get("name", "")
+              if name.startswith("iPhone") and "Max" not in name:
+                candidates.append((version_key(runtime_name), name, device["udid"]))
+
+          if not candidates:
+            raise SystemExit("No available iPhone simulators found")
+
+          candidates.sort(reverse=True)
+          print(candidates[0][2])
           PY
           )"
-          SIMULATOR_UDID="$(xcrun simctl create "Fotuu E2E iPhone" "${DEVICE_TYPE_ID}" "${RUNTIME_ID}")"
           echo "SIMULATOR_UDID=${SIMULATOR_UDID}" >> "${GITHUB_ENV}"
-          xcrun simctl boot "${SIMULATOR_UDID}"
+          xcrun simctl boot "${SIMULATOR_UDID}" || true
           xcrun simctl bootstatus "${SIMULATOR_UDID}" -b
 
       - name: Install app on simulator
@@ -335,4 +331,3 @@ jobs:
         if: always() && env.SIMULATOR_UDID != ''
         run: |
           xcrun simctl shutdown "${SIMULATOR_UDID}" || true
-          xcrun simctl delete "${SIMULATOR_UDID}" || true
