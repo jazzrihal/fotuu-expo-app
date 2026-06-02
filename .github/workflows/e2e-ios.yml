@@ -55,78 +55,7 @@ jobs:
           CURRENT_SHA: ${{ github.event.pull_request.head.sha }}
           CURRENT_BRANCH: ${{ github.event.pull_request.head.ref }}
           REPOSITORY: ${{ github.repository }}
-        run: |
-          set -euo pipefail
-
-          artifact_json="$(
-            gh api "repos/${REPOSITORY}/actions/artifacts?name=ios-e2e-app&per_page=100" \
-              --jq '.artifacts
-                | map(select(.expired == false))
-                | map(select(.workflow_run.head_branch == env.CURRENT_BRANCH))
-                | map(select((.workflow_run.id | tostring) != env.GITHUB_RUN_ID))
-                | sort_by(.created_at)
-                | reverse
-                | .[0] // empty'
-          )"
-
-          if [ -z "${artifact_json}" ]; then
-            echo "No previous ios-e2e-app artifact found for ${CURRENT_BRANCH}; compiling."
-            {
-              echo "should_compile=true"
-              echo "artifact_run_id=${GITHUB_RUN_ID}"
-              echo "artifact_source_sha="
-            } >> "${GITHUB_OUTPUT}"
-            exit 0
-          fi
-
-          artifact_run_id="$(jq -r '.workflow_run.id' <<< "${artifact_json}")"
-          artifact_source_sha="$(jq -r '.workflow_run.head_sha' <<< "${artifact_json}")"
-
-          if ! git cat-file -e "${artifact_source_sha}^{commit}" 2>/dev/null; then
-            echo "Previous artifact source ${artifact_source_sha} is not available locally; compiling."
-            {
-              echo "should_compile=true"
-              echo "artifact_run_id=${GITHUB_RUN_ID}"
-              echo "artifact_source_sha=${artifact_source_sha}"
-            } >> "${GITHUB_OUTPUT}"
-            exit 0
-          fi
-
-          changed_files="$(
-            git diff --name-only "${artifact_source_sha}" "${CURRENT_SHA}" -- \
-              .github/workflows/e2e-ios-compile.yml \
-              app \
-              app.config.js \
-              app.config.ts \
-              app.json \
-              assets \
-              babel.config.js \
-              babel.config.json \
-              index.js \
-              ios \
-              metro.config.js \
-              metro.config.json \
-              package-lock.json \
-              package.json \
-              src \
-              tsconfig.json
-          )"
-
-          if [ -n "${changed_files}" ]; then
-            echo "App/build inputs changed since artifact ${artifact_run_id}; compiling."
-            printf '%s\n' "${changed_files}"
-            should_compile=true
-            artifact_run_id="${GITHUB_RUN_ID}"
-          else
-            echo "Reusing ios-e2e-app artifact ${artifact_run_id} from ${artifact_source_sha}."
-            should_compile=false
-          fi
-
-          {
-            echo "should_compile=${should_compile}"
-            echo "artifact_run_id=${artifact_run_id}"
-            echo "artifact_source_sha=${artifact_source_sha}"
-          } >> "${GITHUB_OUTPUT}"
+        run: python3 .github/scripts/resolve-ios-e2e-artifact.py
 
   compile-ios-e2e:
     name: Compile iOS E2E app
