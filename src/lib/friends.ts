@@ -1,11 +1,5 @@
 import { supabase } from '@/lib/supabase';
-import type { Database } from '@/lib/database.types';
-
-export type Friend = Database['public']['Functions']['list_friends']['Returns'][number];
-export type FriendRequest =
-  Database['public']['Functions']['list_incoming_friend_requests']['Returns'][number];
-export type ProfileSearchResult =
-  Database['public']['Functions']['search_profiles']['Returns'][number];
+import type { Friend, FriendRequest, SearchProfile } from '@/types/supabase';
 
 function rpcErrorMessage(error: { message: string } | null): string | null {
   return error?.message ?? null;
@@ -38,7 +32,7 @@ export async function listOutgoingFriendRequests(): Promise<{
 export async function searchProfiles(
   query: string,
   limit = 20,
-): Promise<{ data: ProfileSearchResult[] | null; error: string | null }> {
+): Promise<{ data: SearchProfile[] | null; error: string | null }> {
   const { data, error } = await supabase.rpc('search_profiles', {
     p_query: query.trim(),
     p_limit: limit,

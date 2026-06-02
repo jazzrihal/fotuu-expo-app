@@ -14,8 +14,8 @@ import {
   listIncomingFriendRequests,
   listOutgoingFriendRequests,
   respondToFriendRequest,
-  type FriendRequest,
 } from '@/lib/friends';
+import type { FriendRequest } from '@/types/supabase';
 
 export default function FriendRequestsScreen() {
   const [incoming, setIncoming] = useState<FriendRequest[]>([]);

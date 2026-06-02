@@ -9,19 +9,21 @@ import {
 import { Stack } from 'expo-router';
 import { ActionButton } from '@/components/action-button';
 import { ProfileListItem } from '@/components/profile-list-item';
+import { useAuth } from '@/context/auth';
+import { searchProfiles, sendFriendRequest } from '@/lib/friends';
 import {
-  searchProfiles,
-  sendFriendRequest,
-  type ProfileSearchResult,
-} from '@/lib/friends';
-import { parseRelationshipStatus, type RelationshipKind } from '@/lib/relationship-status';
+  searchProfileAction,
+  searchProfileStatusLabel,
+} from '@/lib/search-profile-actions';
+import type { SearchProfile } from '@/types/supabase';
 
 const SEARCH_DEBOUNCE_MS = 350;
 const MIN_QUERY_LENGTH = 2;
 
 export default function SearchFriendsScreen() {
+  const { session } = useAuth();
   const [query, setQuery] = useState('');
-  const [results, setResults] = useState<ProfileSearchResult[]>([]);
+  const [results, setResults] = useState<SearchProfile[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busyProfileId, setBusyProfileId] = useState<string | null>(null);
@@ -117,16 +119,18 @@ export default function SearchFriendsScreen() {
           keyExtractor={(item) => item.id}
           keyboardShouldPersistTaps="handled"
           renderItem={({ item }) => {
-            const relationship = parseRelationshipStatus(item.relationship_status);
+            const action = searchProfileAction(item, session?.user.id);
+            const statusLabel = searchProfileStatusLabel(item, session?.user.id);
+
             return (
               <ProfileListItem
                 testID={`search-result-${item.username}`}
                 displayName={item.display_name}
                 username={item.username}
-                relationship={relationship}
+                subtitle={statusLabel || undefined}
                 trailing={searchTrailingAction({
                   profile: item,
-                  relationship,
+                  action,
                   busyProfileId,
                   onSendRequest: handleSendRequest,
                 })}
@@ -141,32 +145,31 @@ export default function SearchFriendsScreen() {
 
 function searchTrailingAction({
   profile,
-  relationship,
+  action,
   busyProfileId,
   onSendRequest,
 }: {
-  profile: ProfileSearchResult;
-  relationship: RelationshipKind;
+  profile: SearchProfile;
+  action: ReturnType<typeof searchProfileAction>;
   busyProfileId: string | null;
   onSendRequest: (profileId: string) => void;
 }) {
-  switch (relationship) {
-    case 'self':
+  switch (action) {
+    case 'none':
       return null;
     case 'friends':
       return (
         <Text style={{ fontSize: 14, color: '#6B7280', fontWeight: '500' }}>Friends</Text>
       );
-    case 'outgoing_request':
+    case 'pending':
       return (
         <Text style={{ fontSize: 14, color: '#6B7280', fontWeight: '500' }}>Pending</Text>
       );
-    case 'incoming_request':
+    case 'respond':
       return (
         <Text style={{ fontSize: 14, color: '#2563EB', fontWeight: '500' }}>Respond</Text>
       );
-    case 'none':
-    case 'unknown':
+    case 'add':
       return (
         <ActionButton
           testID={`send-request-${profile.username}`}

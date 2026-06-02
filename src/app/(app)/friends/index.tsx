@@ -9,7 +9,8 @@ import {
 } from 'react-native';
 import { Link, Stack, useFocusEffect } from 'expo-router';
 import { ProfileListItem } from '@/components/profile-list-item';
-import { listFriends, type Friend } from '@/lib/friends';
+import { listFriends } from '@/lib/friends';
+import type { Friend } from '@/types/supabase';
 
 function formatFriendsSince(iso: string) {
   try {

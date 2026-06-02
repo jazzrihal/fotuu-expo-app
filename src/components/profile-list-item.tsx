@@ -1,12 +1,10 @@
 import type { ReactNode } from 'react';
 import { Pressable, Text, View } from 'react-native';
-import { relationshipLabel, type RelationshipKind } from '@/lib/relationship-status';
 
 type ProfileListItemProps = {
   displayName: string;
   username: string;
   subtitle?: string;
-  relationship?: RelationshipKind;
   onPress?: () => void;
   testID?: string;
   trailing?: ReactNode;
@@ -16,13 +14,11 @@ export function ProfileListItem({
   displayName,
   username,
   subtitle,
-  relationship,
   onPress,
   testID,
   trailing,
 }: ProfileListItemProps) {
-  const statusLabel = relationship ? relationshipLabel(relationship) : '';
-  const meta = subtitle ?? (statusLabel || undefined);
+  const meta = subtitle;
 
   const content = (
     <View
