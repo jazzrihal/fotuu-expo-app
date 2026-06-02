@@ -1,5 +1,5 @@
-import { ScrollView, Text, View } from 'react-native';
-import { Stack } from 'expo-router';
+import { Pressable, ScrollView, Text, View } from 'react-native';
+import { Link, Stack } from 'expo-router';
 import { useAuth } from '@/context/auth';
 
 export default function Home() {
@@ -22,6 +22,22 @@ export default function Home() {
               {session?.user.id}
             </Text>
           </Text>
+
+          <Link href="/(app)/friends" asChild>
+            <Pressable
+              testID="home-friends-link"
+              style={({ pressed }) => ({
+                marginTop: 16,
+                backgroundColor: pressed ? '#1D4ED8' : '#2563EB',
+                borderRadius: 10,
+                borderCurve: 'continuous',
+                padding: 14,
+                alignItems: 'center',
+              })}
+            >
+              <Text style={{ color: '#fff', fontSize: 16, fontWeight: '600' }}>Friends</Text>
+            </Pressable>
+          </Link>
         </View>
       </ScrollView>
     </>
