@@ -1,0 +1,205 @@
+name: iOS E2E
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ios-e2e-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  compile-ios-e2e:
+    name: Compile iOS E2E app
+    uses: ./.github/workflows/e2e-ios-compile.yml
+    permissions:
+      contents: read
+    secrets:
+      E2E_SUPABASE_URL: ${{ secrets.E2E_SUPABASE_URL }}
+      E2E_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.E2E_SUPABASE_PUBLISHABLE_KEY }}
+
+  run-ios-e2e:
+    name: Run iOS Maestro E2E
+    runs-on: macos-26
+    timeout-minutes: 30
+    needs: compile-ios-e2e
+    env:
+      CI: "true"
+      MAESTRO_DRIVER_STARTUP_TIMEOUT: "120000"
+      E2E_EMAIL: "alice@example.com"
+      E2E_PASSWORD: "fotuu-local-dev"
+      E2E_SIGN_UP_EMAIL: "e2e-new@fotuu.com"
+      E2E_SIGN_UP_PASSWORD: "Password123!"
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22.13.x"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Download E2E iOS app artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ios-e2e-app
+          path: artifacts
+
+      - name: Unpack E2E iOS app
+        run: |
+          set -euo pipefail
+          mkdir -p build
+          tar -xzf artifacts/ios-e2e-app.tar.gz -C build
+          APP_PATH="$(python3 <<'PY'
+          from pathlib import Path
+
+          apps = sorted(path for path in Path("build/ios-e2e").rglob("*.app") if path.is_dir())
+          if not apps:
+            raise SystemExit("No .app bundle found in downloaded iOS E2E artifact")
+          print(apps[0])
+          PY
+          )"
+          echo "Using app bundle: ${APP_PATH}"
+          {
+            echo "APP_PATH<<EOF"
+            echo "${APP_PATH}"
+            echo "EOF"
+          } >> "${GITHUB_ENV}"
+
+      - name: Install Maestro
+        run: |
+          set -euo pipefail
+          curl -fsSL "https://get.maestro.mobile.dev" | bash
+          echo "${HOME}/.maestro/bin" >> "${GITHUB_PATH}"
+
+      - name: Prepare Supabase Auth test users
+        env:
+          E2E_SUPABASE_URL: ${{ secrets.E2E_SUPABASE_URL }}
+          E2E_SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.E2E_SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const { createClient } = require('@supabase/supabase-js');
+
+          const required = [
+            'E2E_SUPABASE_URL',
+            'E2E_SUPABASE_SERVICE_ROLE_KEY',
+            'E2E_EMAIL',
+            'E2E_PASSWORD',
+            'E2E_SIGN_UP_EMAIL',
+          ];
+          const missing = required.filter((name) => !process.env[name]);
+          if (missing.length > 0) {
+            throw new Error(`Missing required environment variables: ${missing.join(', ')}`);
+          }
+
+          async function main() {
+            const supabase = createClient(
+              process.env.E2E_SUPABASE_URL,
+              process.env.E2E_SUPABASE_SERVICE_ROLE_KEY,
+              {
+                auth: {
+                  autoRefreshToken: false,
+                  persistSession: false,
+                },
+              },
+            );
+
+            async function findUserByEmail(email) {
+              const perPage = 1000;
+              for (let page = 1; ; page += 1) {
+                const { data, error } = await supabase.auth.admin.listUsers({ page, perPage });
+                if (error) throw error;
+
+                const user = data.users.find((candidate) => candidate.email === email);
+                if (user) return user;
+                if (data.users.length < perPage) return null;
+              }
+            }
+
+            async function deleteUserByEmail(email) {
+              const user = await findUserByEmail(email);
+              if (!user) return;
+
+              const { error } = await supabase.auth.admin.deleteUser(user.id);
+              if (error) throw error;
+            }
+
+            await deleteUserByEmail(process.env.E2E_EMAIL);
+            await deleteUserByEmail(process.env.E2E_SIGN_UP_EMAIL);
+
+            const { error } = await supabase.auth.admin.createUser({
+              email: process.env.E2E_EMAIL,
+              password: process.env.E2E_PASSWORD,
+              email_confirm: true,
+            });
+            if (error) throw error;
+
+            console.log(`Prepared Supabase Auth users for ${process.env.E2E_EMAIL}`);
+          }
+
+          main().catch((error) => {
+            console.error(error);
+            process.exit(1);
+          });
+          NODE
+
+      - name: Create and boot iOS simulator
+        run: |
+          set -euo pipefail
+          RUNTIME_ID="$(python3 <<'PY'
+          import json
+          import subprocess
+
+          data = json.loads(subprocess.check_output(["xcrun", "simctl", "list", "runtimes", "available", "-j"]))
+          runtimes = [
+            runtime for runtime in data["runtimes"]
+            if runtime.get("platform") == "iOS" and runtime.get("isAvailable", False)
+          ]
+          if not runtimes:
+            raise SystemExit("No available iOS simulator runtimes found")
+          runtimes.sort(key=lambda runtime: tuple(int(part) for part in runtime["version"].split(".")), reverse=True)
+          print(runtimes[0]["identifier"])
+          PY
+          )"
+          DEVICE_TYPE_ID="$(python3 <<'PY'
+          import json
+          import subprocess
+
+          data = json.loads(subprocess.check_output(["xcrun", "simctl", "list", "devicetypes", "-j"]))
+          devices = [
+            device for device in data["devicetypes"]
+            if device["name"].startswith("iPhone") and "Max" not in device["name"]
+          ]
+          if not devices:
+            raise SystemExit("No iPhone simulator device types found")
+          print(devices[-1]["identifier"])
+          PY
+          )"
+          SIMULATOR_UDID="$(xcrun simctl create "Fotuu E2E iPhone" "${DEVICE_TYPE_ID}" "${RUNTIME_ID}")"
+          echo "SIMULATOR_UDID=${SIMULATOR_UDID}" >> "${GITHUB_ENV}"
+          xcrun simctl boot "${SIMULATOR_UDID}"
+          xcrun simctl bootstatus "${SIMULATOR_UDID}" -b
+
+      - name: Install app on simulator
+        run: |
+          set -euo pipefail
+          xcrun simctl install "${SIMULATOR_UDID}" "${APP_PATH}"
+
+      - name: Run Maestro E2E suite
+        run: npm run test:e2e
+
+      - name: Delete iOS simulator
+        if: always() && env.SIMULATOR_UDID != ''
+        run: |
+          xcrun simctl shutdown "${SIMULATOR_UDID}" || true
+          xcrun simctl delete "${SIMULATOR_UDID}" || true

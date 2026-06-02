@@ -1,11 +1,12 @@
 name: Compile iOS E2E App
 
 on:
-  push:
-    branches:
-      - main
-  pull_request:
-  workflow_dispatch:
+  workflow_call:
+    secrets:
+      E2E_SUPABASE_URL:
+        required: true
+      E2E_SUPABASE_PUBLISHABLE_KEY:
+        required: true
 
 permissions:
   contents: read
@@ -22,8 +23,8 @@ jobs:
     env:
       CI: "true"
       EXPO_NO_TELEMETRY: "1"
-      EXPO_PUBLIC_SUPABASE_LOCAL_URL: "http://127.0.0.1:54321"
-      EXPO_PUBLIC_SUPABASE_LOCAL_PUBLISHABLE_KEY: "sb_publishable_ci_placeholder"
+      EXPO_PUBLIC_SUPABASE_LOCAL_URL: ${{ secrets.E2E_SUPABASE_URL }}
+      EXPO_PUBLIC_SUPABASE_LOCAL_PUBLISHABLE_KEY: ${{ secrets.E2E_SUPABASE_PUBLISHABLE_KEY }}
 
     steps:
       - name: Check out repository
@@ -57,3 +58,25 @@ jobs:
 
       - name: Compile E2E iOS app
         run: npm run build:e2e:ios -- --device generic --output ./build/ios-e2e
+
+      - name: Package E2E iOS app
+        run: |
+          set -euo pipefail
+          python3 <<'PY'
+          from pathlib import Path
+
+          output = Path("build/ios-e2e")
+          apps = sorted(path for path in output.rglob("*.app") if path.is_dir())
+          if not apps:
+            raise SystemExit(f"No .app bundle found under {output}")
+          print(f"Found app bundle: {apps[0]}")
+          PY
+          tar -czf build/ios-e2e-app.tar.gz -C build ios-e2e
+
+      - name: Upload E2E iOS app artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-e2e-app
+          path: build/ios-e2e-app.tar.gz
+          if-no-files-found: error
+          retention-days: 3
