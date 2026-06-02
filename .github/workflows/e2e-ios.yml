@@ -292,31 +292,80 @@ jobs:
           SIMULATOR_UDID="$(python3 <<'PY'
           import json
           import subprocess
+          import sys
 
-          data = json.loads(subprocess.check_output(["xcrun", "simctl", "list", "devices", "available", "-j"]))
+          runtimes_data = json.loads(subprocess.check_output(["xcrun", "simctl", "list", "runtimes", "available", "-j"]))
+          runtimes = [
+            runtime for runtime in runtimes_data["runtimes"]
+            if runtime.get("platform") == "iOS" and runtime.get("isAvailable", False)
+          ]
+          if not runtimes:
+            raise SystemExit("No available iOS simulator runtimes found")
 
-          def version_key(runtime_name):
-            parts = runtime_name.replace("iOS ", "").split(".")
+          def version_key(version):
+            parts = version.split(".")
             return tuple(int(part) for part in parts if part.isdigit())
 
+          runtimes.sort(key=lambda runtime: version_key(runtime["version"]), reverse=True)
+          runtime = runtimes[0]
+
+          device_data = json.loads(subprocess.check_output(["xcrun", "simctl", "list", "devicetypes", "-j"]))
+          devices = [
+            device for device in device_data["devicetypes"]
+            if device["name"].startswith("iPhone")
+          ]
+          preferred_names = [
+            "iPhone 17",
+            "iPhone 17 Pro",
+            "iPhone 16",
+            "iPhone 16 Pro",
+            "iPhone 15",
+            "iPhone 15 Pro",
+            "iPhone 14",
+            "iPhone 14 Pro",
+          ]
           candidates = []
-          for runtime_name, devices in data["devices"].items():
-            if not runtime_name.startswith("iOS "):
-              continue
-            for device in devices:
-              name = device.get("name", "")
-              if name.startswith("iPhone") and "Max" not in name:
-                candidates.append((version_key(runtime_name), name, device["udid"]))
-
+          for preferred_name in preferred_names:
+            candidates.extend(device for device in devices if device["name"] == preferred_name)
+          candidates.extend(
+            device for device in devices
+            if device not in candidates and "Max" not in device["name"]
+          )
+          candidates.extend(device for device in devices if device not in candidates)
           if not candidates:
-            raise SystemExit("No available iPhone simulators found")
+            raise SystemExit("No iPhone simulator device types found")
 
-          candidates.sort(reverse=True)
-          print(candidates[0][2])
+          for device in candidates:
+            try:
+              udid = subprocess.check_output(
+                [
+                  "xcrun",
+                  "simctl",
+                  "create",
+                  "Fotuu E2E iPhone",
+                  device["identifier"],
+                  runtime["identifier"],
+                ],
+                stderr=subprocess.STDOUT,
+                text=True,
+              ).strip()
+              print(
+                f"Created simulator {udid} using {device['name']} and {runtime['name']}",
+                file=sys.stderr,
+              )
+              print(udid)
+              break
+            except subprocess.CalledProcessError as error:
+              print(
+                f"Could not create {device['name']} for {runtime['name']}: {error.output.strip()}",
+                file=sys.stderr,
+              )
+          else:
+            raise SystemExit(f"No compatible iPhone simulator device type found for {runtime['name']}")
           PY
           )"
           echo "SIMULATOR_UDID=${SIMULATOR_UDID}" >> "${GITHUB_ENV}"
-          xcrun simctl boot "${SIMULATOR_UDID}" || true
+          xcrun simctl boot "${SIMULATOR_UDID}"
           xcrun simctl bootstatus "${SIMULATOR_UDID}" -b
 
       - name: Install app on simulator
@@ -331,3 +380,4 @@ jobs:
         if: always() && env.SIMULATOR_UDID != ''
         run: |
           xcrun simctl shutdown "${SIMULATOR_UDID}" || true
+          xcrun simctl delete "${SIMULATOR_UDID}" || true
