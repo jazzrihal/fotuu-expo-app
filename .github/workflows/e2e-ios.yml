@@ -27,6 +27,9 @@ jobs:
     runs-on: macos-26
     timeout-minutes: 30
     needs: compile-ios-e2e
+    concurrency:
+      group: ios-e2e-remote-test-db
+      cancel-in-progress: false
     env:
       CI: "true"
       MAESTRO_DRIVER_STARTUP_TIMEOUT: "120000"
@@ -81,10 +84,52 @@ jobs:
           curl -fsSL "https://get.maestro.mobile.dev" | bash
           echo "${HOME}/.maestro/bin" >> "${GITHUB_PATH}"
 
-      - name: Prepare Supabase Auth test users
+      - name: Validate Supabase reset configuration
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.E2E_SUPABASE_DB_PASSWORD }}
+          E2E_SUPABASE_PROJECT_REF: ${{ secrets.E2E_SUPABASE_PROJECT_REF }}
+        run: |
+          set -euo pipefail
+          missing=()
+          for name in SUPABASE_ACCESS_TOKEN SUPABASE_DB_PASSWORD E2E_SUPABASE_PROJECT_REF; do
+            if [ -z "${!name:-}" ]; then
+              missing+=("${name}")
+            fi
+          done
+          if [ "${#missing[@]}" -gt 0 ]; then
+            printf 'Missing required Supabase reset configuration: %s\n' "${missing[*]}" >&2
+            exit 1
+          fi
+
+      - name: Check out Supabase backend
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ vars.E2E_SUPABASE_BACKEND_REPOSITORY || 'jazzrihal/fotuu-supabase-backend' }}
+          path: supabase-backend
+          token: ${{ secrets.E2E_SUPABASE_BACKEND_TOKEN || github.token }}
+
+      - name: Set up Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: 2.104.0
+
+      - name: Reset E2E Supabase database
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.E2E_SUPABASE_DB_PASSWORD }}
+          E2E_SUPABASE_PROJECT_REF: ${{ secrets.E2E_SUPABASE_PROJECT_REF }}
+        run: |
+          set -euo pipefail
+          supabase --workdir supabase-backend link \
+            --project-ref "${E2E_SUPABASE_PROJECT_REF}" \
+            --password "${SUPABASE_DB_PASSWORD}"
+          supabase --workdir supabase-backend db reset --linked --yes
+
+      - name: Verify seeded Supabase Auth user
         env:
           E2E_SUPABASE_URL: ${{ secrets.E2E_SUPABASE_URL }}
-          E2E_SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.E2E_SUPABASE_SERVICE_ROLE_KEY }}
+          E2E_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.E2E_SUPABASE_PUBLISHABLE_KEY }}
         run: |
           set -euo pipefail
           node <<'NODE'
@@ -92,10 +137,9 @@ jobs:
 
           const required = [
             'E2E_SUPABASE_URL',
-            'E2E_SUPABASE_SERVICE_ROLE_KEY',
+            'E2E_SUPABASE_PUBLISHABLE_KEY',
             'E2E_EMAIL',
             'E2E_PASSWORD',
-            'E2E_SIGN_UP_EMAIL',
           ];
           const missing = required.filter((name) => !process.env[name]);
           if (missing.length > 0) {
@@ -105,7 +149,7 @@ jobs:
           async function main() {
             const supabase = createClient(
               process.env.E2E_SUPABASE_URL,
-              process.env.E2E_SUPABASE_SERVICE_ROLE_KEY,
+              process.env.E2E_SUPABASE_PUBLISHABLE_KEY,
               {
                 auth: {
                   autoRefreshToken: false,
@@ -114,37 +158,14 @@ jobs:
               },
             );
 
-            async function findUserByEmail(email) {
-              const perPage = 1000;
-              for (let page = 1; ; page += 1) {
-                const { data, error } = await supabase.auth.admin.listUsers({ page, perPage });
-                if (error) throw error;
-
-                const user = data.users.find((candidate) => candidate.email === email);
-                if (user) return user;
-                if (data.users.length < perPage) return null;
-              }
-            }
-
-            async function deleteUserByEmail(email) {
-              const user = await findUserByEmail(email);
-              if (!user) return;
-
-              const { error } = await supabase.auth.admin.deleteUser(user.id);
-              if (error) throw error;
-            }
-
-            await deleteUserByEmail(process.env.E2E_EMAIL);
-            await deleteUserByEmail(process.env.E2E_SIGN_UP_EMAIL);
-
-            const { error } = await supabase.auth.admin.createUser({
+            const { error } = await supabase.auth.signInWithPassword({
               email: process.env.E2E_EMAIL,
               password: process.env.E2E_PASSWORD,
-              email_confirm: true,
             });
             if (error) throw error;
 
-            console.log(`Prepared Supabase Auth users for ${process.env.E2E_EMAIL}`);
+            await supabase.auth.signOut();
+            console.log(`Verified seeded Supabase Auth user ${process.env.E2E_EMAIL}`);
           }
 
           main().catch((error) => {
