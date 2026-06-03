@@ -1,0 +1,20 @@
+appId: com.jazzrihal.Fotuu
+env:
+  E2E_EMAIL: ${E2E_EMAIL || "alice@example.com"}
+  E2E_PASSWORD: ${E2E_PASSWORD || "fotuu-local-dev"}
+---
+- runFlow:
+    file: ../auth/sign-in.yaml
+    env:
+      E2E_EMAIL: ${E2E_EMAIL}
+      E2E_PASSWORD: ${E2E_PASSWORD}
+- tapOn: "Friends"
+- tapOn:
+    id: "friends-add-friend-header"
+- assertVisible:
+    id: "friends-search-input"
+- tapOn:
+    id: "friends-search-input"
+- inputText: "bob"
+- assertVisible:
+    id: "friends-search-results"

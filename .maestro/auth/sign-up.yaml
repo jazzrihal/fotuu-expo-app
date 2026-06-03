@@ -29,5 +29,24 @@ env:
 - inputText: ${NEW_PASSWORD}
 - tapOn:
     id: "sign-up-button"
-- assertVisible:
-    id: "sign-up-confirmation"
+# Local Supabase skips email confirmation and lands on home immediately.
+# Production requires confirmation and shows sign-up-confirmation screen.
+- runFlow:
+    when:
+      visible: "Not Now"
+    commands:
+      - tapOn: "Not Now"
+- runFlow:
+    when:
+      visible:
+        id: "sign-up-confirmation"
+    commands:
+      - assertVisible:
+          id: "sign-up-confirmation"
+- runFlow:
+    when:
+      visible: "Friends"
+    commands:
+      - tapOn: "Profile"
+      - assertVisible:
+          id: "home-user-email"
