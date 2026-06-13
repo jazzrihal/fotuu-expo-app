@@ -7,6 +7,15 @@ export default function HomeLayout() {
         headerLargeTitle: true,
         headerBackButtonDisplayMode: 'minimal',
       }}
-    />
+    >
+      <Stack.Screen
+        name="new-post"
+        options={{
+          title: 'New Post',
+          presentation: 'fullScreenModal',
+          headerLargeTitle: false,
+        }}
+      />
+    </Stack>
   );
 }

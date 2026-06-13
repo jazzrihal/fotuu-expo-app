@@ -36,6 +36,22 @@
           }
         }
       ],
+      "expo-image-picker",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow Fotuu to access your camera to capture photos for posts.",
+          "microphonePermission": false,
+          "recordAudioAndroid": false,
+          "barcodeScannerEnabled": false
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Allow Fotuu to attach your location to posts."
+        }
+      ],
       "expo-sqlite"
     ],
     "experiments": {

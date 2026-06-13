@@ -2,6 +2,7 @@ appId: com.jazzrihal.Fotuu
 flows:
   - "auth/*"
   - "friends/*"
+  - "posts/*"
 executionOrder:
   continueOnFailure: false
   flowsOrder:
@@ -12,3 +13,4 @@ executionOrder:
     - list
     - search
     - requests
+    - create-post
