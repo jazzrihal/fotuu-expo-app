@@ -9,7 +9,7 @@ env:
       E2E_EMAIL: ${E2E_EMAIL}
       E2E_PASSWORD: ${E2E_PASSWORD}
 - tapOn: "Friends"
-- tapOn: "Add Friend"
+- tapOn: "Search"
 - tapOn: "Search by username or name"
 - inputText: "bob"
 - assertVisible:
