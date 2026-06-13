@@ -1,13 +1,8 @@
-import { useCallback, useEffect, useState } from 'react';
-import {
-  ActivityIndicator,
-  FlatList,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
-import { Stack } from 'expo-router';
-import { ActionButton } from '@/components/action-button';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, type NativeSyntheticEvent, type TextInputFocusEventData } from 'react-native';
+import type { SearchBarCommands } from 'react-native-screens';
+import { Button, FieldGroup, Host, Text } from '@expo/ui';
+import { Stack, useFocusEffect, useNavigation } from 'expo-router';
 import { ProfileListItem } from '@/components/profile-list-item';
 import {
   searchProfiles,
@@ -20,11 +15,16 @@ const SEARCH_DEBOUNCE_MS = 350;
 const MIN_QUERY_LENGTH = 2;
 
 export default function SearchFriendsScreen() {
+  const navigation = useNavigation();
+  const searchBarRef = useRef<SearchBarCommands>(null);
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<ProfileSearchResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busyProfileId, setBusyProfileId] = useState<string | null>(null);
+
+  const trimmedQuery = query.trim();
+  const isSearchActive = trimmedQuery.length >= MIN_QUERY_LENGTH;
 
   const runSearch = useCallback(async (searchQuery: string) => {
     const trimmed = searchQuery.trim();
@@ -42,6 +42,33 @@ export default function SearchFriendsScreen() {
     else setResults(data ?? []);
     setLoading(false);
   }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      navigation.setOptions({
+        headerSearchBarOptions: {
+          ref: searchBarRef,
+          placeholder: 'Search by username or name',
+          autoCapitalize: 'none',
+          autoFocus: true,
+          hideWhenScrolling: false,
+          placement: 'inline',
+          onChangeText: (event: NativeSyntheticEvent<TextInputFocusEventData>) => {
+            setQuery(event.nativeEvent.text);
+          },
+          onCancelButtonPress: () => {
+            setQuery('');
+          },
+        },
+      });
+
+      const focusTimer = setTimeout(() => {
+        searchBarRef.current?.focus();
+      }, 100);
+
+      return () => clearTimeout(focusTimer);
+    }, [navigation]),
+  );
 
   useEffect(() => {
     const handle = setTimeout(() => {
@@ -65,77 +92,40 @@ export default function SearchFriendsScreen() {
   return (
     <>
       <Stack.Screen options={{ title: 'Search' }} />
-      <View style={{ flex: 1 }}>
-        <View style={{ padding: 16, gap: 8, borderBottomWidth: 1, borderBottomColor: '#F3F4F6' }}>
-          <TextInput
-            testID="friends-search-input"
-            value={query}
-            onChangeText={setQuery}
-            autoCapitalize="none"
-            autoCorrect={false}
-            placeholder="Search by username or name"
-            placeholderTextColor="#9CA3AF"
-            returnKeyType="search"
-            style={{
-              borderWidth: 1,
-              borderColor: '#D1D5DB',
-              borderRadius: 10,
-              borderCurve: 'continuous',
-              padding: 14,
-              fontSize: 16,
-              backgroundColor: '#F9FAFB',
-            }}
-          />
-          <Text style={{ fontSize: 13, color: '#9CA3AF' }}>
-            Enter at least {MIN_QUERY_LENGTH} characters to search.
-          </Text>
-        </View>
-
-        {loading ? <ActivityIndicator style={{ marginTop: 24 }} /> : null}
-
-        {error ? (
-          <Text
-            testID="friends-search-error"
-            style={{ padding: 16, color: '#DC2626', fontSize: 14 }}
-          >
-            {error}
-          </Text>
+      <Host style={{ flex: 1 }} useViewportSizeMeasurement>
+        {isSearchActive ? (
+          <FieldGroup>
+            <FieldGroup.Section testID="friends-search-results">
+              {loading ? (
+                <Text>Searching…</Text>
+              ) : error ? (
+                <Text testID="friends-search-error">{error}</Text>
+              ) : results.length === 0 ? (
+                <Text testID="friends-search-empty">No profiles found.</Text>
+              ) : (
+                results.map((item) => {
+                  const relationship = parseRelationshipStatus(item.relationship_status);
+                  return (
+                    <ProfileListItem
+                      key={item.id}
+                      testID={`search-result-${item.username}`}
+                      displayName={item.display_name}
+                      username={item.username}
+                      relationship={relationship}
+                      trailing={searchTrailingAction({
+                        profile: item,
+                        relationship,
+                        busyProfileId,
+                        onSendRequest: handleSendRequest,
+                      })}
+                    />
+                  );
+                })
+              )}
+            </FieldGroup.Section>
+          </FieldGroup>
         ) : null}
-
-        {!loading && query.trim().length >= MIN_QUERY_LENGTH && results.length === 0 && !error ? (
-          <Text
-            testID="friends-search-empty"
-            style={{ padding: 24, textAlign: 'center', color: '#6B7280', fontSize: 15 }}
-          >
-            No profiles found.
-          </Text>
-        ) : null}
-
-        <FlatList
-          testID="friends-search-results"
-          data={results}
-          keyExtractor={(item) => item.id}
-          contentInsetAdjustmentBehavior="automatic"
-          keyboardShouldPersistTaps="handled"
-          renderItem={({ item }) => {
-            const relationship = parseRelationshipStatus(item.relationship_status);
-            return (
-              <ProfileListItem
-                testID={`search-result-${item.username}`}
-                displayName={item.display_name}
-                username={item.username}
-                relationship={relationship}
-                trailing={searchTrailingAction({
-                  profile: item,
-                  relationship,
-                  busyProfileId,
-                  onSendRequest: handleSendRequest,
-                })}
-              />
-            );
-          }}
-        />
-      </View>
+      </Host>
     </>
   );
 }
@@ -155,27 +145,25 @@ function searchTrailingAction({
     case 'self':
       return null;
     case 'friends':
-      return (
-        <Text style={{ fontSize: 14, color: '#6B7280', fontWeight: '500' }}>Friends</Text>
-      );
+      return <Text>Friends</Text>;
     case 'outgoing_request':
-      return (
-        <Text style={{ fontSize: 14, color: '#6B7280', fontWeight: '500' }}>Pending</Text>
-      );
+      return <Text>Pending</Text>;
     case 'incoming_request':
-      return (
-        <Text style={{ fontSize: 14, color: '#2563EB', fontWeight: '500' }}>Respond</Text>
-      );
+      return <Text>Respond</Text>;
     case 'none':
     case 'unknown':
       return (
-        <ActionButton
+        <Button
           testID={`send-request-${profile.username}`}
-          label="Add"
-          loading={busyProfileId === profile.id}
+          variant="filled"
+          label={busyProfileId === profile.id ? undefined : 'Add'}
           disabled={busyProfileId !== null && busyProfileId !== profile.id}
           onPress={() => onSendRequest(profile.id)}
-        />
+        >
+          {busyProfileId === profile.id ? (
+            <ActivityIndicator size="small" />
+          ) : null}
+        </Button>
       );
     default:
       return null;

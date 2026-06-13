@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { ListItem } from '@expo/ui';
 import { relationshipLabel, type RelationshipKind } from '@/lib/relationship-status';
 
 type ProfileListItemProps = {
@@ -22,48 +22,13 @@ export function ProfileListItem({
   trailing,
 }: ProfileListItemProps) {
   const statusLabel = relationship ? relationshipLabel(relationship) : '';
-  const meta = subtitle ?? (trailing ? undefined : (statusLabel || undefined));
-
-  const content = (
-    <View
-      style={{
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 12,
-        paddingVertical: 12,
-        paddingHorizontal: 16,
-      }}
-    >
-      <View style={{ flex: 1, gap: 2 }}>
-        <Text style={{ fontSize: 16, fontWeight: '600' }}>{displayName}</Text>
-        <Text style={{ fontSize: 14, color: '#6B7280' }}>@{username}</Text>
-        {meta ? (
-          <Text style={{ fontSize: 13, color: '#9CA3AF', marginTop: 2 }}>{meta}</Text>
-        ) : null}
-      </View>
-      {trailing}
-    </View>
-  );
-
-  if (!onPress) {
-    return (
-      <View testID={testID} style={{ borderBottomWidth: 1, borderBottomColor: '#F3F4F6' }}>
-        {content}
-      </View>
-    );
-  }
+  const meta = subtitle ?? (trailing ? undefined : statusLabel || undefined);
+  const supportingText = meta ? `@${username} · ${meta}` : `@${username}`;
 
   return (
-    <Pressable
-      testID={testID}
-      onPress={onPress}
-      style={({ pressed }) => ({
-        backgroundColor: pressed ? '#F9FAFB' : '#fff',
-        borderBottomWidth: 1,
-        borderBottomColor: '#F3F4F6',
-      })}
-    >
-      {content}
-    </Pressable>
+    <ListItem testID={testID} onPress={onPress} supportingText={supportingText}>
+      {displayName}
+      {trailing ? <ListItem.Trailing>{trailing}</ListItem.Trailing> : null}
+    </ListItem>
   );
 }

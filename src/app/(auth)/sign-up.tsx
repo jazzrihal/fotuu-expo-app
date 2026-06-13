@@ -1,14 +1,7 @@
 import { useState } from 'react';
-import {
-  ActivityIndicator,
-  KeyboardAvoidingView,
-  Pressable,
-  ScrollView,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
-import { Link } from 'expo-router';
+import { ActivityIndicator, Text, View } from 'react-native';
+import { Button, Column, Host, Row, ScrollView, Text as UiText, TextInput } from '@expo/ui';
+import { Link, router } from 'expo-router';
 import { useAuth } from '@/context/auth';
 
 export default function SignUp() {
@@ -46,163 +39,99 @@ export default function SignUp() {
 
   if (needsConfirmation) {
     return (
-      <View testID="sign-up-confirmation" style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24, gap: 16 }}>
-        <Text style={{ fontSize: 48 }}>📬</Text>
-        <Text style={{ fontSize: 24, fontWeight: '700', textAlign: 'center' }}>
-          Check your email
-        </Text>
-        <Text style={{ fontSize: 16, color: '#6B7280', textAlign: 'center', lineHeight: 24 }}>
+      <View
+        testID="sign-up-confirmation"
+        style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24, gap: 16 }}
+      >
+        <Text>Check your email</Text>
+        <Text style={{ textAlign: 'center' }}>
           We sent a confirmation link to{' '}
-          <Text style={{ color: '#111827', fontWeight: '500' }} selectable>
-            {email}
-          </Text>
-          . Click the link to activate your account.
+          <Text selectable>{email}</Text>. Click the link to activate your account.
         </Text>
         <Link replace href="/(auth)/sign-in">
-          <Text style={{ color: '#2563EB', fontSize: 16, fontWeight: '500' }}>
-            Back to sign in
-          </Text>
+          <Text>Back to sign in</Text>
         </Link>
       </View>
     );
   }
 
   return (
-    <KeyboardAvoidingView behavior="padding" style={{ flex: 1 }}>
-      <ScrollView
-        contentInsetAdjustmentBehavior="automatic"
-        contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', gap: 24, padding: 24 }}
-        keyboardShouldPersistTaps="handled"
-      >
-        <View style={{ gap: 8 }}>
-          <Text style={{ fontSize: 32, fontWeight: '700', letterSpacing: -0.5 }}>
-            Create account
-          </Text>
-          <Text style={{ fontSize: 16, color: '#6B7280' }}>
-            Sign up to get started
-          </Text>
-        </View>
+    <Host ignoreSafeArea="keyboard" style={{ flex: 1 }}>
+      <ScrollView>
+        <Column spacing={24} style={{ padding: 24 }}>
+          <Column spacing={8}>
+            <UiText>Create account</UiText>
+            <UiText>Sign up to get started</UiText>
+          </Column>
 
-        <View style={{ gap: 12 }}>
-          <View style={{ gap: 6 }}>
-            <Text style={{ fontSize: 14, fontWeight: '500', color: '#374151' }}>
-              Email
-            </Text>
-            <TextInput
-              testID="sign-up-email"
-              value={email}
-              onChangeText={setEmail}
-              autoCapitalize="none"
-              autoCorrect={false}
-              keyboardType="email-address"
-              textContentType="emailAddress"
-              returnKeyType="next"
-              placeholder="you@example.com"
-              placeholderTextColor="#9CA3AF"
-              style={{
-                borderWidth: 1,
-                borderColor: '#D1D5DB',
-                borderRadius: 10,
-                borderCurve: 'continuous',
-                padding: 14,
-                fontSize: 16,
-                backgroundColor: '#F9FAFB',
-              }}
+          <Column spacing={12}>
+            <Column spacing={6}>
+              <UiText>Email</UiText>
+              <TextInput
+                testID="sign-up-email"
+                onChangeText={setEmail}
+                autoCapitalize="none"
+                autoCorrect={false}
+                keyboardType="email-address"
+                autoComplete="email"
+                returnKeyType="next"
+                placeholder="you@example.com"
+              />
+            </Column>
+
+            <Column spacing={6}>
+              <UiText>Password</UiText>
+              <TextInput
+                testID="sign-up-password"
+                onChangeText={setPassword}
+                secureTextEntry
+                autoComplete="new-password"
+                returnKeyType="next"
+                placeholder="••••••••"
+              />
+            </Column>
+
+            <Column spacing={6}>
+              <UiText>Confirm password</UiText>
+              <TextInput
+                testID="sign-up-confirm-password"
+                onChangeText={setConfirmPassword}
+                secureTextEntry
+                autoComplete="new-password"
+                returnKeyType="done"
+                onSubmitEditing={handleSignUp}
+                placeholder="••••••••"
+              />
+            </Column>
+
+            {error ? (
+              <UiText testID="sign-up-error" textStyle={{ color: '#DC2626' }}>
+                {error}
+              </UiText>
+            ) : null}
+
+            <Button
+              testID="sign-up-button"
+              variant="filled"
+              label={loading ? undefined : 'Create account'}
+              onPress={handleSignUp}
+              disabled={loading}
+            >
+              {loading ? <ActivityIndicator /> : null}
+            </Button>
+          </Column>
+
+          <Row spacing={4}>
+            <UiText>Already have an account?</UiText>
+            <Button
+              testID="sign-up-link-to-sign-in"
+              variant="text"
+              label="Sign in"
+              onPress={() => router.replace('/(auth)/sign-in')}
             />
-          </View>
-
-          <View style={{ gap: 6 }}>
-            <Text style={{ fontSize: 14, fontWeight: '500', color: '#374151' }}>
-              Password
-            </Text>
-            <TextInput
-              testID="sign-up-password"
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry
-              textContentType="newPassword"
-              returnKeyType="next"
-              placeholder="••••••••"
-              placeholderTextColor="#9CA3AF"
-              style={{
-                borderWidth: 1,
-                borderColor: '#D1D5DB',
-                borderRadius: 10,
-                borderCurve: 'continuous',
-                padding: 14,
-                fontSize: 16,
-                backgroundColor: '#F9FAFB',
-              }}
-            />
-          </View>
-
-          <View style={{ gap: 6 }}>
-            <Text style={{ fontSize: 14, fontWeight: '500', color: '#374151' }}>
-              Confirm password
-            </Text>
-            <TextInput
-              testID="sign-up-confirm-password"
-              value={confirmPassword}
-              onChangeText={setConfirmPassword}
-              secureTextEntry
-              textContentType="newPassword"
-              returnKeyType="done"
-              onSubmitEditing={handleSignUp}
-              placeholder="••••••••"
-              placeholderTextColor="#9CA3AF"
-              style={{
-                borderWidth: 1,
-                borderColor: '#D1D5DB',
-                borderRadius: 10,
-                borderCurve: 'continuous',
-                padding: 14,
-                fontSize: 16,
-                backgroundColor: '#F9FAFB',
-              }}
-            />
-          </View>
-
-          {error && (
-            <Text testID="sign-up-error" selectable style={{ fontSize: 14, color: '#DC2626' }}>
-              {error}
-            </Text>
-          )}
-
-          <Pressable
-            testID="sign-up-button"
-            onPress={handleSignUp}
-            disabled={loading}
-            style={({ pressed }) => ({
-              backgroundColor: pressed ? '#1D4ED8' : '#2563EB',
-              borderRadius: 10,
-              borderCurve: 'continuous',
-              padding: 15,
-              alignItems: 'center',
-              opacity: loading ? 0.7 : 1,
-              marginTop: 4,
-            })}
-          >
-            {loading ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={{ color: '#fff', fontSize: 16, fontWeight: '600' }}>
-                Create account
-              </Text>
-            )}
-          </Pressable>
-        </View>
-
-        <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 4 }}>
-          <Text style={{ color: '#6B7280', fontSize: 14 }}>
-            Already have an account?
-          </Text>
-          <Link testID="sign-up-link-to-sign-in" replace href="/(auth)/sign-in">
-            <Text style={{ color: '#2563EB', fontSize: 14, fontWeight: '500' }}>
-              Sign in
-            </Text>
-          </Link>
-        </View>
+          </Row>
+        </Column>
       </ScrollView>
-    </KeyboardAvoidingView>
+    </Host>
   );
 }

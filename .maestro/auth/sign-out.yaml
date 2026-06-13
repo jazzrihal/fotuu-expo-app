@@ -5,7 +5,6 @@ appId: com.jazzrihal.Fotuu
     env:
       E2E_EMAIL: "alice@example.com"
       E2E_PASSWORD: "fotuu-local-dev"
-- tapOn:
-    id: "sign-out-button"
+- tapOn: "Sign out"
 - assertVisible:
     id: "sign-in-email"

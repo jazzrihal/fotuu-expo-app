@@ -10,4 +10,4 @@ env:
       E2E_PASSWORD: ${E2E_PASSWORD}
 - tapOn: "Friends"
 - assertVisible:
-    id: "friends-requests-incoming"
+    id: "friends-requests-pending"

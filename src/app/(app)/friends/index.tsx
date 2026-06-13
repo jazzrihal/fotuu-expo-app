@@ -1,15 +1,8 @@
-import { useCallback, useState, type ReactNode } from 'react';
-import {
-  ActivityIndicator,
-  FlatList,
-  Pressable,
-  RefreshControl,
-  Text,
-  View,
-} from 'react-native';
-import { router, Stack, useFocusEffect } from 'expo-router';
-import { ActionButton } from '@/components/action-button';
-import { ProfileListItem } from '@/components/profile-list-item';
+import { useCallback, useState } from "react";
+import { ActivityIndicator, Text as RNText } from "react-native";
+import { Button, Column, FieldGroup, Host, Row, Text } from "@expo/ui";
+import { router, Stack, useFocusEffect } from "expo-router";
+import { ProfileListItem } from "@/components/profile-list-item";
 import {
   cancelFriendRequest,
   listFriends,
@@ -18,7 +11,7 @@ import {
   respondToFriendRequest,
   type Friend,
   type FriendRequest,
-} from '@/lib/friends';
+} from "@/lib/friends";
 
 function formatFriendsSince(iso: string) {
   try {
@@ -33,13 +26,11 @@ export default function FriendsScreen() {
   const [incoming, setIncoming] = useState<FriendRequest[]>([]);
   const [outgoing, setOutgoing] = useState<FriendRequest[]>([]);
   const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busyRequestId, setBusyRequestId] = useState<string | null>(null);
 
   const loadData = useCallback(async (isRefresh = false) => {
-    if (isRefresh) setRefreshing(true);
-    else setLoading(true);
+    if (!isRefresh) setLoading(true);
     setError(null);
 
     const [friendsResult, incomingResult, outgoingResult] = await Promise.all([
@@ -49,7 +40,9 @@ export default function FriendsScreen() {
     ]);
 
     if (friendsResult.error || incomingResult.error || outgoingResult.error) {
-      setError(friendsResult.error ?? incomingResult.error ?? outgoingResult.error);
+      setError(
+        friendsResult.error ?? incomingResult.error ?? outgoingResult.error,
+      );
     } else {
       setFriends(friendsResult.data ?? []);
       setIncoming(incomingResult.data ?? []);
@@ -57,7 +50,6 @@ export default function FriendsScreen() {
     }
 
     setLoading(false);
-    setRefreshing(false);
   }, []);
 
   useFocusEffect(
@@ -69,7 +61,10 @@ export default function FriendsScreen() {
   async function handleRespond(requestId: string, accept: boolean) {
     setBusyRequestId(requestId);
     setError(null);
-    const { error: respondError } = await respondToFriendRequest(requestId, accept);
+    const { error: respondError } = await respondToFriendRequest(
+      requestId,
+      accept,
+    );
     setBusyRequestId(null);
     if (respondError) setError(respondError);
     else await loadData(true);
@@ -88,157 +83,145 @@ export default function FriendsScreen() {
 
   return (
     <>
-      <Stack.Screen
-        options={{
-          title: 'Friends',
-          headerRight: () => (
-            <Pressable
-              testID="friends-add-friend-header"
-              onPress={() => router.push('/(app)/friends/search')}
-              hitSlop={8}
-            >
-              <Text style={{ color: '#2563EB', fontSize: 16 }}>Add Friend</Text>
-            </Pressable>
-          ),
-        }}
-      />
-      <View testID="friends-list" style={{ flex: 1 }}>
+      <Stack.Screen options={{ title: "Friends" }} />
+      <Host
+        testID="friends-list"
+        style={{ flex: 1 }}
+        useViewportSizeMeasurement
+      >
         {loading ? (
           <ActivityIndicator style={{ marginTop: 32 }} />
         ) : error ? (
-          <View style={{ padding: 24, gap: 12 }}>
-            <Text testID="friends-error" selectable style={{ color: '#DC2626', fontSize: 14 }}>
+          <Column spacing={12} style={{ padding: 24 }}>
+            <RNText testID="friends-error" selectable>
               {error}
-            </Text>
-            <Pressable onPress={() => loadData()}>
-              <Text style={{ color: '#2563EB', fontWeight: '600' }}>Try again</Text>
-            </Pressable>
-          </View>
+            </RNText>
+            <Button
+              variant="text"
+              label="Try again"
+              onPress={() => loadData()}
+            />
+          </Column>
         ) : (
-          <FlatList
-            data={friends}
-            keyExtractor={(item) => item.id}
-            contentInsetAdjustmentBehavior="automatic"
-            refreshControl={
-              <RefreshControl refreshing={refreshing} onRefresh={() => loadData(true)} />
-            }
-            ListHeaderComponent={
-              hasRequests ? (
-                <View>
-                  {incoming.length > 0 ? (
-                    <Section title="Incoming" testID="friends-requests-incoming">
-                      {incoming.map((request) => (
-                        <ProfileListItem
-                          key={request.request_id}
-                          testID={`incoming-request-${request.username}`}
-                          displayName={request.display_name}
-                          username={request.username}
-                          trailing={
-                            <View style={{ flexDirection: 'row', gap: 8 }}>
-                              <ActionButton
-                                testID={`accept-request-${request.username}`}
-                                label="Accept"
-                                loading={busyRequestId === request.request_id}
-                                disabled={
-                                  busyRequestId !== null && busyRequestId !== request.request_id
-                                }
-                                onPress={() => handleRespond(request.request_id, true)}
-                              />
-                              <ActionButton
-                                testID={`decline-request-${request.username}`}
-                                label="Decline"
-                                variant="secondary"
-                                loading={busyRequestId === request.request_id}
-                                disabled={
-                                  busyRequestId !== null && busyRequestId !== request.request_id
-                                }
-                                onPress={() => handleRespond(request.request_id, false)}
-                              />
-                            </View>
+          <>
+            {!hasRequests && friends.length === 0 ? (
+              <Text testID="friends-empty" style={{ padding: 24 }}>
+                No friends yet. Search for people to send a request.
+              </Text>
+            ) : null}
+            <FieldGroup>
+              {hasRequests ? (
+                <FieldGroup.Section title="Pending" testID="friends-requests-pending">
+                  {incoming.map((request) => (
+                    <ProfileListItem
+                      key={request.request_id}
+                      testID={`incoming-request-${request.username}`}
+                      displayName={request.display_name}
+                      username={request.username}
+                      trailing={
+                        <Row spacing={8} alignment="center">
+                          <Button
+                            testID={`accept-request-${request.username}`}
+                            variant="filled"
+                            label={
+                              busyRequestId === request.request_id
+                                ? undefined
+                                : "Accept"
+                            }
+                            disabled={
+                              busyRequestId !== null &&
+                              busyRequestId !== request.request_id
+                            }
+                            onPress={() =>
+                              handleRespond(request.request_id, true)
+                            }
+                          >
+                            {busyRequestId === request.request_id ? (
+                              <ActivityIndicator size="small" />
+                            ) : null}
+                          </Button>
+                          <Button
+                            testID={`decline-request-${request.username}`}
+                            variant="outlined"
+                            label={
+                              busyRequestId === request.request_id
+                                ? undefined
+                                : "Decline"
+                            }
+                            disabled={
+                              busyRequestId !== null &&
+                              busyRequestId !== request.request_id
+                            }
+                            onPress={() =>
+                              handleRespond(request.request_id, false)
+                            }
+                          >
+                            {busyRequestId === request.request_id ? (
+                              <ActivityIndicator size="small" />
+                            ) : null}
+                          </Button>
+                        </Row>
+                      }
+                    />
+                  ))}
+                  {outgoing.map((request) => (
+                    <ProfileListItem
+                      key={request.request_id}
+                      testID={`outgoing-request-${request.username}`}
+                      displayName={request.display_name}
+                      username={request.username}
+                      trailing={
+                        <Button
+                          testID={`cancel-request-${request.username}`}
+                          variant="outlined"
+                          label={
+                            busyRequestId === request.request_id
+                              ? undefined
+                              : "Cancel"
                           }
-                        />
-                      ))}
-                    </Section>
-                  ) : null}
-                  {outgoing.length > 0 ? (
-                    <Section title="Outgoing" testID="friends-requests-outgoing">
-                      {outgoing.map((request) => (
-                        <ProfileListItem
-                          key={request.request_id}
-                          testID={`outgoing-request-${request.username}`}
-                          displayName={request.display_name}
-                          username={request.username}
-                          trailing={
-                            <ActionButton
-                              testID={`cancel-request-${request.username}`}
-                              label="Cancel"
-                              variant="danger"
-                              loading={busyRequestId === request.request_id}
-                              disabled={
-                                busyRequestId !== null && busyRequestId !== request.request_id
-                              }
-                              onPress={() => handleCancel(request.request_id)}
-                            />
+                          disabled={
+                            busyRequestId !== null &&
+                            busyRequestId !== request.request_id
                           }
-                        />
-                      ))}
-                    </Section>
-                  ) : null}
-                  {friends.length > 0 ? <Section title="Friends" testID="friends-section" /> : null}
-                </View>
-              ) : null
-            }
-            ListEmptyComponent={
-              !hasRequests ? (
-                <Text
-                  testID="friends-empty"
-                  style={{ padding: 24, fontSize: 15, color: '#6B7280', textAlign: 'center' }}
+                          onPress={() => handleCancel(request.request_id)}
+                        >
+                          {busyRequestId === request.request_id ? (
+                            <ActivityIndicator size="small" />
+                          ) : null}
+                        </Button>
+                      }
+                    />
+                  ))}
+                </FieldGroup.Section>
+              ) : null}
+              {friends.length > 0 ? (
+                <FieldGroup.Section
+                  title={hasRequests ? "Friends" : undefined}
+                  testID={hasRequests ? "friends-section" : undefined}
                 >
-                  No friends yet. Search for people to send a request.
-                </Text>
-              ) : null
-            }
-            renderItem={({ item }) => (
-              <ProfileListItem
-                testID={`friend-row-${item.username}`}
-                displayName={item.display_name}
-                username={item.username}
-                subtitle={formatFriendsSince(item.friends_since)}
-              />
-            )}
-          />
+                  {friends.map((item) => (
+                    <ProfileListItem
+                      key={item.id}
+                      testID={`friend-row-${item.username}`}
+                      displayName={item.display_name}
+                      username={item.username}
+                      subtitle={formatFriendsSince(item.friends_since)}
+                    />
+                  ))}
+                </FieldGroup.Section>
+              ) : null}
+            </FieldGroup>
+          </>
         )}
-      </View>
+      </Host>
+      <Stack.Toolbar placement="right">
+        <Stack.Toolbar.Button
+          accessibilityLabel="Add Friend"
+          onPress={() => router.push("/(app)/friends/search")}
+        >
+          Add Friend
+        </Stack.Toolbar.Button>
+      </Stack.Toolbar>
     </>
-  );
-}
-
-function Section({
-  title,
-  testID,
-  children,
-}: {
-  title: string;
-  testID: string;
-  children?: ReactNode;
-}) {
-  return (
-    <View testID={testID}>
-      <Text
-        style={{
-          fontSize: 13,
-          fontWeight: '600',
-          color: '#6B7280',
-          textTransform: 'uppercase',
-          letterSpacing: 0.5,
-          paddingHorizontal: 16,
-          paddingTop: 20,
-          paddingBottom: 8,
-        }}
-      >
-        {title}
-      </Text>
-      {children}
-    </View>
   );
 }

@@ -1,27 +1,27 @@
-import { ScrollView, Text, View } from 'react-native';
+import { Column, Host, ScrollView, Text } from '@expo/ui';
 import { Stack } from 'expo-router';
 import { useAuth } from '@/context/auth';
 
 export default function Profile() {
-  const { session } = useAuth();
+  const { session, signOut } = useAuth();
 
   return (
     <>
       <Stack.Screen options={{ title: 'Profile' }} />
-      <ScrollView contentInsetAdjustmentBehavior="automatic">
-        <View style={{ padding: 24, gap: 12 }}>
-          <Text style={{ fontSize: 20, fontWeight: '600' }}>Your account</Text>
-          <Text testID="home-user-email" selectable style={{ fontSize: 15, color: '#6B7280' }}>
-            {session?.user.email}
-          </Text>
-          <Text style={{ fontSize: 14, color: '#9CA3AF', marginTop: 8 }}>
-            User ID:{' '}
-            <Text selectable style={{ fontFamily: 'monospace' }}>
-              {session?.user.id}
-            </Text>
-          </Text>
-        </View>
-      </ScrollView>
+      <Host style={{ flex: 1 }}>
+        <ScrollView>
+          <Column spacing={12} style={{ padding: 24 }}>
+            <Text>Your account</Text>
+            <Text testID="home-user-email">{session?.user.email ?? ''}</Text>
+            <Text>{`User ID: ${session?.user.id ?? ''}`}</Text>
+          </Column>
+        </ScrollView>
+      </Host>
+      <Stack.Toolbar placement="right">
+        <Stack.Toolbar.Button accessibilityLabel="Sign out" onPress={signOut}>
+          Sign out
+        </Stack.Toolbar.Button>
+      </Stack.Toolbar>
     </>
   );
 }
