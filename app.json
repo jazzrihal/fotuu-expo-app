@@ -52,7 +52,13 @@
           "locationWhenInUsePermission": "Allow Fotuu to attach your location to posts."
         }
       ],
-      "expo-sqlite"
+      "expo-sqlite",
+      [
+        "expo-maps",
+        {
+          "requestLocationPermission": true
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

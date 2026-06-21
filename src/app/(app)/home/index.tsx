@@ -1,106 +1,298 @@
-import { useCallback, useState } from 'react';
-import { ActivityIndicator, Text as RNText, View, useWindowDimensions } from 'react-native';
-import { Host, ScrollView, Text } from '@expo/ui';
-import { Image } from 'expo-image';
-import { Stack, useFocusEffect, useRouter } from 'expo-router';
-import { getPostImageUrls, listVisiblePosts, type VisiblePost } from '@/lib/posts';
+import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  ActivityIndicator,
+  Pressable,
+  StyleSheet,
+  useWindowDimensions,
+  View,
+} from "react-native";
+import { FlashList } from "@shopify/flash-list";
+import { Button, Column, Host, Text } from "@expo/ui";
+import { useObserve } from "@legendapp/state/react";
+import { Image } from "expo-image";
+import * as Location from "expo-location";
+import { Stack, useRouter } from "expo-router";
+import { HomeFeedHeader } from "@/components/home-feed-header";
+import { type MapCoordinates } from "@/components/map-picker";
+import { locationPicker$ } from "@/lib/location-picker-store";
+import { resolveLocationLabel } from "@/lib/location-label";
+import { getPostImageUrls, listFeedPosts, type FeedPost } from "@/lib/posts";
+
+type FeedPostWithImage = FeedPost & { imageUrl?: string };
+
+const DEFAULT_COORDINATES: MapCoordinates = {
+  latitude: 37.7749,
+  longitude: -122.4194,
+};
 
 const GRID_COLUMNS = 3;
 
-type FeedPost = VisiblePost & { imageUrl?: string };
-
 export default function Home() {
   const router = useRouter();
-  const { width } = useWindowDimensions();
-  const cellSize = width / GRID_COLUMNS;
+  const { width: screenWidth } = useWindowDimensions();
+  const tileSize = useMemo(
+    () => Math.floor(screenWidth / GRID_COLUMNS),
+    [screenWidth],
+  );
 
-  const [posts, setPosts] = useState<FeedPost[]>([]);
+  const [selectedDate, setSelectedDate] = useState(() => new Date());
+  const [selectedLocation, setSelectedLocation] =
+    useState<MapCoordinates | null>(null);
+  const [locationLabel, setLocationLabel] = useState("Current location");
+  const [posts, setPosts] = useState<FeedPostWithImage[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [initializingLocation, setInitializingLocation] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const loadFeed = useCallback(async (isRefresh = false) => {
-    if (!isRefresh) {
-      setLoading(true);
-    }
-    setError(null);
-
-    const { data, error: listError } = await listVisiblePosts();
-    if (listError) {
-      setError(listError);
-      setPosts([]);
-      setLoading(false);
+  useObserve(locationPicker$.confirmed, async ({ value }) => {
+    if (!value) {
       return;
     }
 
-    const visiblePosts = data ?? [];
-    const paths = visiblePosts.map((post) => post.storage_object_path);
-    const { data: imageUrls, error: urlError } = await getPostImageUrls(paths);
+    setSelectedLocation(value);
+    setLocationLabel(await resolveLocationLabel(value));
+    locationPicker$.confirmed.set(null);
+  });
 
-    if (urlError) {
-      setError(urlError);
-      setPosts([]);
-      setLoading(false);
-      return;
+  const loadFeed = useCallback(
+    async (isRefresh = false) => {
+      if (!selectedLocation) {
+        return;
+      }
+
+      if (isRefresh) {
+        setRefreshing(true);
+      } else {
+        setLoading(true);
+      }
+      setError(null);
+
+      try {
+        const { data, error: listError } = await listFeedPosts({
+          at: selectedDate.toISOString(),
+          latitude: selectedLocation.latitude,
+          longitude: selectedLocation.longitude,
+        });
+
+        if (listError) {
+          setError(listError);
+          setPosts([]);
+          return;
+        }
+
+        const feedPosts = data ?? [];
+        const paths = feedPosts.map((post) => post.storage_object_path);
+        const { data: imageUrls, error: urlError } =
+          await getPostImageUrls(paths);
+
+        if (urlError) {
+          setError(urlError);
+          setPosts([]);
+          return;
+        }
+
+        setPosts(
+          feedPosts.map((post) => ({
+            ...post,
+            imageUrl: imageUrls[post.storage_object_path],
+          })),
+        );
+      } finally {
+        if (isRefresh) {
+          setRefreshing(false);
+        } else {
+          setLoading(false);
+        }
+      }
+    },
+    [selectedDate, selectedLocation],
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function initializeLocation() {
+      setInitializingLocation(true);
+
+      try {
+        const permission = await Location.requestForegroundPermissionsAsync();
+        if (!permission.granted) {
+          if (!cancelled) {
+            setLocationLabel("Select location");
+            setInitializingLocation(false);
+            setLoading(false);
+          }
+          return;
+        }
+
+        const position = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Balanced,
+        });
+        const coordinates = {
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+        };
+
+        if (cancelled) {
+          return;
+        }
+
+        setSelectedLocation(coordinates);
+        setLocationLabel(await resolveLocationLabel(coordinates));
+      } catch {
+        if (!cancelled) {
+          setLocationLabel("Select location");
+          setLoading(false);
+        }
+      } finally {
+        if (!cancelled) {
+          setInitializingLocation(false);
+        }
+      }
     }
 
-    setPosts(
-      visiblePosts.map((post) => ({
-        ...post,
-        imageUrl: imageUrls[post.storage_object_path],
-      })),
-    );
-    setLoading(false);
+    void initializeLocation();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  useFocusEffect(
-    useCallback(() => {
-      void loadFeed();
-    }, [loadFeed]),
+  useEffect(() => {
+    if (!selectedLocation) {
+      return;
+    }
+
+    void loadFeed();
+  }, [loadFeed, selectedLocation]);
+
+  const openLocationPicker = useCallback(() => {
+    locationPicker$.initial.set(selectedLocation ?? DEFAULT_COORDINATES);
+    router.push("/(app)/home/map-picker-modal");
+  }, [selectedLocation, router]);
+
+  const openPostDetail = useCallback(
+    (post: FeedPostWithImage) => {
+      router.push({
+        pathname: "/(app)/home/[id]",
+        params: {
+          id: post.id,
+          post: JSON.stringify(post),
+        },
+      });
+    },
+    [router],
   );
+
+  const renderGridItem = useCallback(
+    ({ item }: { item: FeedPostWithImage }) => (
+      <Pressable
+        testID={`home-feed-post-${item.id}`}
+        onPress={() => openPostDetail(item)}
+        style={{
+          width: tileSize,
+          height: tileSize,
+          backgroundColor: "grey",
+          borderColor: "white",
+          borderWidth: 1,
+        }}
+      >
+        <Image
+          recyclingKey={item.id}
+          source={item.imageUrl ? { uri: item.imageUrl } : undefined}
+          style={{ width: tileSize, height: tileSize }}
+          contentFit="cover"
+        />
+      </Pressable>
+    ),
+    [openPostDetail, tileSize],
+  );
+
+  const feedContent = (() => {
+    if (initializingLocation || loading) {
+      return <ActivityIndicator style={styles.loader} />;
+    }
+
+    if (!selectedLocation) {
+      return (
+        <Host matchContents style={styles.feedMessage}>
+          <Column spacing={12}>
+            <Text testID="home-feed-location-required">
+              Location is required to load nearby posts.
+            </Text>
+            <Button label="Select location" onPress={openLocationPicker} />
+          </Column>
+        </Host>
+      );
+    }
+
+    if (error) {
+      return (
+        <Host matchContents style={styles.feedMessage}>
+          <Text testID="home-feed-error">{error}</Text>
+        </Host>
+      );
+    }
+
+    if (posts.length === 0) {
+      return (
+        <Host matchContents style={styles.feedMessage}>
+          <Text testID="home-feed-empty">No posts nearby.</Text>
+        </Host>
+      );
+    }
+
+    return (
+      <FlashList
+        testID="home-feed-grid"
+        data={posts}
+        numColumns={GRID_COLUMNS}
+        keyExtractor={(item) => item.id}
+        renderItem={renderGridItem}
+        refreshing={refreshing}
+        onRefresh={() => {
+          void loadFeed(true);
+        }}
+      />
+    );
+  })();
 
   return (
     <>
-      <Stack.Screen options={{ title: 'Home' }} />
-      <Host testID="home-feed" style={{ flex: 1 }}>
-        {loading ? (
-          <ActivityIndicator style={{ marginTop: 32 }} />
-        ) : error ? (
-          <Text testID="home-feed-error" style={{ padding: 24 }}>
-            {error}
-          </Text>
-        ) : posts.length === 0 ? (
-          <View style={{ padding: 24, alignItems: 'center' }}>
-            <RNText testID="home-feed-empty">No posts yet.</RNText>
-          </View>
-        ) : (
-          <ScrollView>
-            <View
-              testID="home-feed-grid"
-              style={{
-                flexDirection: 'row',
-                flexWrap: 'wrap',
-              }}
-            >
-              {posts.map((post) => (
-                <Image
-                  key={post.id}
-                  testID={`home-feed-post-${post.id}`}
-                  source={post.imageUrl ? { uri: post.imageUrl } : undefined}
-                  style={{ width: cellSize, height: cellSize }}
-                  contentFit="cover"
-                />
-              ))}
-            </View>
-          </ScrollView>
-        )}
-      </Host>
+      <HomeFeedHeader
+        selectedDate={selectedDate}
+        onDateChange={setSelectedDate}
+        locationLabel={locationLabel}
+        onLocationPress={openLocationPicker}
+      />
+      <View testID="home-feed" style={styles.feed}>
+        {feedContent}
+      </View>
+
       <Stack.Toolbar placement="right">
         <Stack.Toolbar.Button
           accessibilityLabel="New post"
           icon="plus"
-          onPress={() => router.push('/(app)/home/new-post')}
+          onPress={() => router.push("/(app)/home/new-post")}
         />
       </Stack.Toolbar>
     </>
   );
 }
+
+const styles = StyleSheet.create({
+  screen: {
+    flex: 1,
+  },
+  feed: {
+    flex: 1,
+  },
+  feedMessage: {
+    paddingHorizontal: 16,
+    paddingTop: 24,
+  },
+  loader: {
+    marginTop: 32,
+  },
+});

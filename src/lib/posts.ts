@@ -4,6 +4,9 @@ import type { Database } from '@/lib/database.types';
 export type VisiblePost =
   Database['public']['Functions']['list_visible_posts']['Returns'][number];
 
+export type FeedPost =
+  Database['public']['Functions']['list_feed_posts']['Returns'][number];
+
 export type PostPrivacyScope = Database['public']['Enums']['post_privacy_scope'];
 
 const POST_IMAGES_BUCKET = 'post-images';
@@ -113,6 +116,24 @@ export async function listVisiblePosts(before?: string): Promise<{
   const { data, error } = await supabase.rpc('list_visible_posts', {
     p_limit: 30,
     p_before: before ?? undefined,
+  });
+
+  return { data, error: rpcErrorMessage(error) };
+}
+
+export async function listFeedPosts(params: {
+  at: string;
+  latitude: number;
+  longitude: number;
+  limit?: number;
+  maxDistanceMeters?: number;
+}): Promise<{ data: FeedPost[] | null; error: string | null }> {
+  const { data, error } = await supabase.rpc('list_feed_posts', {
+    p_at: params.at,
+    p_latitude: params.latitude,
+    p_longitude: params.longitude,
+    p_limit: params.limit ?? 30,
+    p_max_distance_meters: params.maxDistanceMeters,
   });
 
   return { data, error: rpcErrorMessage(error) };

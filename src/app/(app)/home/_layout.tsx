@@ -1,18 +1,42 @@
-import { Stack } from 'expo-router/stack';
+import { Stack } from "expo-router/stack";
 
 export default function HomeLayout() {
   return (
     <Stack
       screenOptions={{
-        headerLargeTitle: true,
-        headerBackButtonDisplayMode: 'minimal',
+        headerBackButtonDisplayMode: "minimal",
       }}
     >
       <Stack.Screen
+        name="index"
+        options={{
+          title: "Feed",
+          headerShown: true,
+          headerLargeTitle: false,
+        }}
+      />
+      <Stack.Screen
+        name="[id]"
+        options={{
+          title: "",
+          headerShown: true,
+          headerLargeTitle: false,
+        }}
+      />
+      <Stack.Screen
+        name="map-picker-modal"
+        options={{
+          title: "Pick Location",
+          presentation: "fullScreenModal",
+          headerShown: true,
+          headerLargeTitle: false,
+        }}
+      />
+      <Stack.Screen
         name="new-post"
         options={{
-          title: 'New Post',
-          presentation: 'fullScreenModal',
+          title: "New Post",
+          presentation: "fullScreenModal",
           headerLargeTitle: false,
         }}
       />
