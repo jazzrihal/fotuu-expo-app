@@ -185,65 +185,63 @@ export default function NewPostScreen() {
     );
   }
 
-  const previewSize = width - 48;
-
   return (
     <>
       <ScrollView
         style={{ flex: 1 }}
         contentInsetAdjustmentBehavior="automatic"
-        contentContainerStyle={styles.previewContent}
       >
         <Image
           testID="new-post-preview"
           source={{ uri: imageUri }}
           style={{
-            width: previewSize,
-            height: previewSize,
-            borderRadius: 12,
+            width,
+            height: width,
           }}
           contentFit="cover"
         />
 
-        <View style={styles.section}>
-          <Text selectable style={styles.sectionLabel}>
-            Caption
-          </Text>
-          <TextInput
-            testID="new-post-caption"
-            value={caption}
-            onChangeText={setCaption}
-            placeholder="Write a caption…"
-            maxLength={CAPTION_MAX_LENGTH}
-            multiline
-            textAlignVertical="top"
-            style={styles.captionInput}
-          />
-        </View>
+        <View style={styles.formContent}>
+          <View style={styles.section}>
+            <Text selectable style={styles.sectionLabel}>
+              Caption
+            </Text>
+            <TextInput
+              testID="new-post-caption"
+              value={caption}
+              onChangeText={setCaption}
+              placeholder="Write a caption…"
+              maxLength={CAPTION_MAX_LENGTH}
+              multiline
+              textAlignVertical="top"
+              style={styles.captionInput}
+            />
+          </View>
 
-        <View style={styles.section}>
-          <Text selectable style={styles.sectionLabel}>
-            Who can see this?
-          </Text>
-          <Host matchContents>
-            <Picker
-              testID="new-post-privacy-picker"
-              selectedValue={privacyScope}
-              onValueChange={(value) => setPrivacyScope(value as PostPrivacyScope)}
-              appearance="menu"
-            >
-              <Picker.Item label="Public" value="public" />
-              <Picker.Item label="Friends" value="friends_only" />
-              <Picker.Item label="Private" value="private" />
-            </Picker>
-          </Host>
-        </View>
+          <View style={styles.section}>
+            <Text selectable style={styles.sectionLabel}>
+              Who can see this?
+            </Text>
+            <Host matchContents>
+              <Picker
+                testID="new-post-privacy-picker"
+                selectedValue={privacyScope}
+                onValueChange={(value) => setPrivacyScope(value as PostPrivacyScope)}
+                appearance="menu"
+              >
+                <Picker.Item label="Public" value="public" />
+                <Picker.Item label="Friends" value="friends_only" />
+                <Picker.Item label="Private" value="private" />
+              </Picker>
+            </Host>
+          </View>
 
-        {error ? (
-          <Text selectable testID="new-post-error" style={styles.previewError}>
-            {error}
-          </Text>
-        ) : null}
+          {error ? (
+            <Text selectable testID="new-post-error" style={styles.previewError}>
+              {error}
+            </Text>
+          ) : null}
+        </View>
       </ScrollView>
       <Stack.Toolbar placement="left">
         <Stack.Toolbar.Button
@@ -307,7 +305,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     paddingHorizontal: 24,
   },
-  previewContent: {
+  formContent: {
     padding: 24,
     gap: 16,
   },
