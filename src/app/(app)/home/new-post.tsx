@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { Button, Column, Host, Picker, Text as ExpoText } from '@expo/ui';
 import { CameraView, useCameraPermissions } from 'expo-camera';
-import { Image } from 'expo-image';
+import { Image } from '@/components/image';
 import * as Location from 'expo-location';
 import { Stack, useRouter } from 'expo-router';
 import { useAuth } from '@/context/auth';

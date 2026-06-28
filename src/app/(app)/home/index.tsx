@@ -10,8 +10,7 @@ import {
 import { FlashList } from "@shopify/flash-list";
 import { Button, Column, Host, Text } from "@expo/ui";
 import { useObserve } from "@legendapp/state/react";
-import * as Device from "expo-device";
-import { Image } from "expo-image";
+import { Image } from "@/components/image";
 import * as Location from "expo-location";
 import { Stack, useRouter } from "expo-router";
 import { HomeFeedHeader } from "@/components/home-feed-header";
@@ -29,7 +28,6 @@ const DEFAULT_COORDINATES: MapCoordinates = {
 
 const GRID_COLUMNS = 3;
 const GRID_GAP = 1;
-const SIMULATOR_TILE_BACKGROUND = "grey";
 
 export default function Home() {
   const router = useRouter();
@@ -204,9 +202,6 @@ export default function Home() {
           height: tileSize,
           marginRight: index % GRID_COLUMNS < GRID_COLUMNS - 1 ? GRID_GAP : 0,
           marginBottom: GRID_GAP,
-          backgroundColor: Device.isDevice
-            ? undefined
-            : SIMULATOR_TILE_BACKGROUND,
         }}
       >
         <Image

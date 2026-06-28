@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { useWindowDimensions } from 'react-native';
 import { Column, Host, RNHostView, ScrollView, Text } from '@expo/ui';
-import { Image } from 'expo-image';
+import { Image } from '@/components/image';
 import { Stack, useLocalSearchParams } from 'expo-router';
 import type { FeedPost } from '@/lib/posts';
 
