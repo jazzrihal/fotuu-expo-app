@@ -7,7 +7,22 @@ export type VisiblePost =
 export type FeedPost =
   Database['public']['Functions']['list_feed_posts']['Returns'][number];
 
+export type PostDetail =
+  Database['public']['Functions']['get_post']['Returns'][number];
+
 export type PostPrivacyScope = Database['public']['Enums']['post_privacy_scope'];
+
+export type PostViewerEngagementSource = Pick<
+  FeedPost | PostDetail,
+  'user_reaction' | 'is_pinned_by_current_user'
+>;
+
+export function getPostViewerEngagement(post: PostViewerEngagementSource) {
+  return {
+    isLiked: post.user_reaction === 'like',
+    isPinned: post.is_pinned_by_current_user,
+  };
+}
 
 const POST_IMAGES_BUCKET = 'post-images';
 const SIGNED_URL_TTL_SECONDS = 3600;
@@ -162,4 +177,74 @@ export async function getPostImageUrls(
   }
 
   return { data: urls, error: null };
+}
+
+async function getCurrentUserId(): Promise<string | null> {
+  const { data, error } = await supabase.auth.getUser();
+  if (error || !data.user) {
+    return null;
+  }
+
+  return data.user.id;
+}
+
+export async function getPost(
+  postId: string,
+): Promise<{ data: PostDetail | null; error: string | null }> {
+  const { data, error } = await supabase.rpc('get_post', { p_post_id: postId });
+
+  return { data: data?.[0] ?? null, error: rpcErrorMessage(error) };
+}
+
+export async function likePost(
+  postId: string,
+): Promise<{ error: string | null }> {
+  const userId = await getCurrentUserId();
+  if (!userId) {
+    return { error: 'Not signed in' };
+  }
+
+  const { error } = await supabase.from('post_reactions').upsert(
+    {
+      post_id: postId,
+      user_id: userId,
+      reaction_type: 'like',
+    },
+    { onConflict: 'user_id,post_id' },
+  );
+
+  return { error: rpcErrorMessage(error) };
+}
+
+export async function unlikePost(
+  postId: string,
+): Promise<{ error: string | null }> {
+  const userId = await getCurrentUserId();
+  if (!userId) {
+    return { error: 'Not signed in' };
+  }
+
+  const { error } = await supabase
+    .from('post_reactions')
+    .delete()
+    .eq('post_id', postId)
+    .eq('user_id', userId);
+
+  return { error: rpcErrorMessage(error) };
+}
+
+export async function pinPost(
+  postId: string,
+): Promise<{ error: string | null }> {
+  const { error } = await supabase.rpc('pin_post', { p_post_id: postId });
+
+  return { error: rpcErrorMessage(error) };
+}
+
+export async function unpinPost(
+  postId: string,
+): Promise<{ error: string | null }> {
+  const { error } = await supabase.rpc('unpin_post', { p_post_id: postId });
+
+  return { error: rpcErrorMessage(error) };
 }

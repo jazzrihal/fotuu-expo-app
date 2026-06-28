@@ -26,6 +26,10 @@ env:
     id: "home-post-detail-author"
 - assertVisible:
     id: "home-post-detail-caption"
+- tapOn: "Like"
+- tapOn: "Unlike"
+- tapOn: "Pin"
+- tapOn: "Unpin"
 - assertNotVisible: "Friends"
 - assertNotVisible: "Profile"
 - back
