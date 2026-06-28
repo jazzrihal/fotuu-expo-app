@@ -1,9 +1,6 @@
 import { supabase } from '@/lib/supabase';
 import type { Database } from '@/lib/database.types';
 
-export type VisiblePost =
-  Database['public']['Functions']['list_visible_posts']['Returns'][number];
-
 export type FeedPost =
   Database['public']['Functions']['list_feed_posts']['Returns'][number];
 
@@ -120,18 +117,6 @@ export async function createPost(
     .insert(insert)
     .select('id')
     .single();
-
-  return { data, error: rpcErrorMessage(error) };
-}
-
-export async function listVisiblePosts(before?: string): Promise<{
-  data: VisiblePost[] | null;
-  error: string | null;
-}> {
-  const { data, error } = await supabase.rpc('list_visible_posts', {
-    p_limit: 30,
-    p_before: before ?? undefined,
-  });
 
   return { data, error: rpcErrorMessage(error) };
 }

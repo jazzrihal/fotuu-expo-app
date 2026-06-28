@@ -1,4 +1,4 @@
-import { use, useCallback, useEffect, useMemo, useState } from "react";
+import { use, useCallback, useMemo } from "react";
 import {
   ActivityIndicator,
   ScrollView,
@@ -12,34 +12,22 @@ import { useAuth } from "@/context/auth";
 import { TabBarContext } from "@/context/tab-bar";
 import { buildLocationLine, formatCapturedAt } from "@/lib/post-display";
 import {
-  getPost,
-  getPostImageUrls,
   getPostViewerEngagement,
-  likePost,
-  pinPost,
-  unlikePost,
-  unpinPost,
-  type FeedPost,
-  type PostDetail,
-} from "@/lib/posts";
-
-type FeedPostDetail = (FeedPost | PostDetail) & { imageUrl?: string };
-
-type EngagementOverride = {
-  postId: string;
-  isLiked: boolean;
-  isPinned: boolean;
-};
+  usePostQuery,
+  useToggleLikeMutation,
+  useTogglePinMutation,
+  type PostDetailWithImage,
+} from "@/queries/posts";
 
 function parsePostParam(
   postParam: string | string[] | undefined,
-): FeedPostDetail | null {
+): PostDetailWithImage | null {
   if (!postParam || typeof postParam !== "string") {
     return null;
   }
 
   try {
-    return JSON.parse(postParam) as FeedPostDetail;
+    return JSON.parse(postParam) as PostDetailWithImage;
   } catch {
     return null;
   }
@@ -55,15 +43,22 @@ export default function PostDetailScreen() {
   }>();
 
   const parsedPost = useMemo(() => parsePostParam(postParam), [postParam]);
-  const [fetchedPost, setFetchedPost] = useState<FeedPostDetail | null>(null);
-  const [fetching, setFetching] = useState(() => !parsePostParam(postParam));
-  const [engagementOverride, setEngagementOverride] =
-    useState<EngagementOverride | null>(null);
-  const [actionPending, setActionPending] = useState(false);
-  const [actionError, setActionError] = useState<string | null>(null);
 
-  const post = parsedPost ?? fetchedPost;
+  const postId = useMemo(() => {
+    if (typeof id === "string" && id.length > 0) {
+      return id;
+    }
+    return parsedPost?.id ?? null;
+  }, [id, parsedPost?.id]);
 
+  const postQuery = usePostQuery(postId, {
+    placeholderData: parsedPost ?? undefined,
+  });
+
+  const likeMutation = useToggleLikeMutation(postId);
+  const pinMutation = useTogglePinMutation(postId);
+
+  const post = postQuery.data;
   const postEngagement = useMemo(
     () =>
       post
@@ -72,22 +67,9 @@ export default function PostDetailScreen() {
     [post],
   );
 
-  const hasEngagementOverride =
-    engagementOverride != null && engagementOverride.postId === post?.id;
-  const isLiked = hasEngagementOverride
-    ? engagementOverride.isLiked
-    : postEngagement.isLiked;
-  const isPinned = hasEngagementOverride
-    ? engagementOverride.isPinned
-    : postEngagement.isPinned;
-
-  const postId = useMemo(() => {
-    if (typeof id === "string" && id.length > 0) {
-      return id;
-    }
-
-    return post?.id ?? null;
-  }, [id, post?.id]);
+  const actionPending = likeMutation.isPending || pinMutation.isPending;
+  const actionError =
+    likeMutation.error?.message ?? pinMutation.error?.message ?? null;
 
   useFocusEffect(
     useCallback(() => {
@@ -96,101 +78,21 @@ export default function PostDetailScreen() {
     }, [setIsTabBarHidden]),
   );
 
-  useEffect(() => {
-    if (parsedPost || !postId) {
-      return;
-    }
-
-    let cancelled = false;
-
-    async function loadPost() {
-      setFetching(true);
-
-      const { data, error } = await getPost(postId!);
-      if (cancelled) {
-        return;
-      }
-
-      if (error || !data) {
-        setFetchedPost(null);
-        setFetching(false);
-        return;
-      }
-
-      const { data: imageUrls } = await getPostImageUrls([
-        data.storage_object_path,
-      ]);
-      if (cancelled) {
-        return;
-      }
-
-      setFetchedPost({
-        ...data,
-        imageUrl: imageUrls[data.storage_object_path],
-      });
-      setFetching(false);
-    }
-
-    void loadPost();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [parsedPost, postId]);
-
-  const handleToggleLike = useCallback(async () => {
+  const handleToggleLike = useCallback(() => {
     if (!postId || actionPending) {
       return;
     }
+    likeMutation.mutate(!postEngagement.isLiked);
+  }, [actionPending, likeMutation, postEngagement.isLiked, postId]);
 
-    const nextLiked = !isLiked;
-    setActionError(null);
-    setActionPending(true);
-    setEngagementOverride({
-      postId,
-      isLiked: nextLiked,
-      isPinned,
-    });
-
-    const { error } = nextLiked
-      ? await likePost(postId)
-      : await unlikePost(postId);
-
-    setActionPending(false);
-
-    if (error) {
-      setEngagementOverride(null);
-      setActionError(error);
-    }
-  }, [actionPending, isLiked, isPinned, postId]);
-
-  const handleTogglePin = useCallback(async () => {
+  const handleTogglePin = useCallback(() => {
     if (!postId || actionPending) {
       return;
     }
+    pinMutation.mutate(!postEngagement.isPinned);
+  }, [actionPending, pinMutation, postEngagement.isPinned, postId]);
 
-    const nextPinned = !isPinned;
-    setActionError(null);
-    setActionPending(true);
-    setEngagementOverride({
-      postId,
-      isLiked,
-      isPinned: nextPinned,
-    });
-
-    const { error } = nextPinned
-      ? await pinPost(postId)
-      : await unpinPost(postId);
-
-    setActionPending(false);
-
-    if (error) {
-      setEngagementOverride(null);
-      setActionError(error);
-    }
-  }, [actionPending, isLiked, isPinned, postId]);
-
-  if (fetching && !post) {
+  if (postQuery.isPending && !post) {
     return (
       <>
         <Stack.Screen options={{ title: "", headerLargeTitle: false }} />
@@ -284,22 +186,18 @@ export default function PostDetailScreen() {
 
       <Stack.Toolbar placement="bottom">
         <Stack.Toolbar.Button
-          accessibilityLabel={isLiked ? "Unlike" : "Like"}
+          accessibilityLabel={postEngagement.isLiked ? "Unlike" : "Like"}
           disabled={actionsDisabled}
-          icon={isLiked ? "heart.fill" : "heart"}
-          selected={isLiked}
-          onPress={() => {
-            void handleToggleLike();
-          }}
+          icon={postEngagement.isLiked ? "heart.fill" : "heart"}
+          selected={postEngagement.isLiked}
+          onPress={handleToggleLike}
         />
         <Stack.Toolbar.Button
-          accessibilityLabel={isPinned ? "Unpin" : "Pin"}
+          accessibilityLabel={postEngagement.isPinned ? "Unpin" : "Pin"}
           disabled={actionsDisabled}
-          icon={isPinned ? "pin.fill" : "pin"}
-          selected={isPinned}
-          onPress={() => {
-            void handleTogglePin();
-          }}
+          icon={postEngagement.isPinned ? "pin.fill" : "pin"}
+          selected={postEngagement.isPinned}
+          onPress={handleTogglePin}
         />
       </Stack.Toolbar>
     </>

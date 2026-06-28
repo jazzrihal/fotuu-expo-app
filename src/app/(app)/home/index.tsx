@@ -19,9 +19,7 @@ import { HomeFeedHeader } from "@/components/home-feed-header";
 import { type MapCoordinates } from "@/components/map-picker";
 import { locationPicker$ } from "@/lib/location-picker-store";
 import { resolveLocationLabel } from "@/lib/location-label";
-import { getPostImageUrls, listFeedPosts, type FeedPost } from "@/lib/posts";
-
-type FeedPostWithImage = FeedPost & { imageUrl?: string };
+import { useFeedQuery, type FeedPostWithImage } from "@/queries/posts";
 
 const DEFAULT_COORDINATES: MapCoordinates = {
   latitude: 37.7749,
@@ -48,12 +46,24 @@ export default function Home() {
   const [selectedLocation, setSelectedLocation] =
     useState<MapCoordinates | null>(null);
   const [locationLabel, setLocationLabel] = useState("Current location");
-  const [posts, setPosts] = useState<FeedPostWithImage[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
   const [initializingLocation, setInitializingLocation] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [locationSheetOpen, setLocationSheetOpen] = useState(false);
+
+  const hasLocation =
+    selectedLocation != null &&
+    Number.isFinite(selectedLocation.latitude) &&
+    Number.isFinite(selectedLocation.longitude);
+
+  const feedQuery = useFeedQuery({
+    at: selectedDate.toISOString(),
+    latitude: selectedLocation?.latitude ?? NaN,
+    longitude: selectedLocation?.longitude ?? NaN,
+  });
+
+  const posts = feedQuery.data ?? [];
+  const showFeedLoading =
+    initializingLocation || (hasLocation && feedQuery.isPending);
+  const error = feedQuery.error?.message ?? null;
 
   useObserve(locationPicker$.confirmed, async ({ value }) => {
     if (!value) {
@@ -64,60 +74,6 @@ export default function Home() {
     setLocationLabel(await resolveLocationLabel(value));
     locationPicker$.confirmed.set(null);
   });
-
-  const loadFeed = useCallback(
-    async (isRefresh = false) => {
-      if (!selectedLocation) {
-        return;
-      }
-
-      if (isRefresh) {
-        setRefreshing(true);
-      } else {
-        setLoading(true);
-      }
-      setError(null);
-
-      try {
-        const { data, error: listError } = await listFeedPosts({
-          at: selectedDate.toISOString(),
-          latitude: selectedLocation.latitude,
-          longitude: selectedLocation.longitude,
-        });
-
-        if (listError) {
-          setError(listError);
-          setPosts([]);
-          return;
-        }
-
-        const feedPosts = data ?? [];
-        const paths = feedPosts.map((post) => post.storage_object_path);
-        const { data: imageUrls, error: urlError } =
-          await getPostImageUrls(paths);
-
-        if (urlError) {
-          setError(urlError);
-          setPosts([]);
-          return;
-        }
-
-        setPosts(
-          feedPosts.map((post) => ({
-            ...post,
-            imageUrl: imageUrls[post.storage_object_path],
-          })),
-        );
-      } finally {
-        if (isRefresh) {
-          setRefreshing(false);
-        } else {
-          setLoading(false);
-        }
-      }
-    },
-    [selectedDate, selectedLocation],
-  );
 
   useEffect(() => {
     let cancelled = false;
@@ -131,7 +87,6 @@ export default function Home() {
           if (!cancelled) {
             setLocationLabel("Select location");
             setInitializingLocation(false);
-            setLoading(false);
           }
           return;
         }
@@ -153,7 +108,6 @@ export default function Home() {
       } catch {
         if (!cancelled) {
           setLocationLabel("Select location");
-          setLoading(false);
         }
       } finally {
         if (!cancelled) {
@@ -168,14 +122,6 @@ export default function Home() {
       cancelled = true;
     };
   }, []);
-
-  useEffect(() => {
-    if (!selectedLocation) {
-      return;
-    }
-
-    void loadFeed();
-  }, [loadFeed, selectedLocation]);
 
   const openLocationPicker = useCallback(() => {
     locationPicker$.initial.set(selectedLocation ?? DEFAULT_COORDINATES);
@@ -205,7 +151,7 @@ export default function Home() {
   }, []);
 
   const showLocationEmpty =
-    !initializingLocation && !loading && !selectedLocation;
+    !initializingLocation && !showFeedLoading && !selectedLocation;
 
   useEffect(() => {
     if (showLocationEmpty) {
@@ -250,7 +196,7 @@ export default function Home() {
   );
 
   const feedContent = (() => {
-    if (initializingLocation || loading) {
+    if (showFeedLoading) {
       return <ActivityIndicator style={styles.loader} />;
     }
 
@@ -290,9 +236,9 @@ export default function Home() {
         keyExtractor={(item) => item.id}
         renderItem={renderGridItem}
         style={{ backgroundColor: gridSeparatorColor }}
-        refreshing={refreshing}
+        refreshing={feedQuery.isRefetching}
         onRefresh={() => {
-          void loadFeed(true);
+          void feedQuery.refetch();
         }}
       />
     );

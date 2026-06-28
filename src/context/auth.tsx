@@ -1,5 +1,6 @@
 import React, { createContext, useEffect, useState } from 'react';
 import { Session } from '@supabase/supabase-js';
+import { queryClient } from '@/lib/query-client';
 import { supabase } from '@/lib/supabase';
 
 type AuthContextValue = {
@@ -23,6 +24,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!session) {
+        queryClient.clear();
+      }
       setSession(session);
     });
 

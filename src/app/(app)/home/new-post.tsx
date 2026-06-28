@@ -26,12 +26,9 @@ import { Stack, useRouter, useTheme } from "expo-router";
 import { useAuth } from "@/context/auth";
 import { resolvePostLocationParts } from "@/lib/location-label";
 import { buildLocationLine, formatCapturedAt } from "@/lib/post-display";
-import {
-  createPost,
-  uploadPostImage,
-  type PostPrivacyScope,
-} from "@/lib/posts";
-import { supabase } from "@/lib/supabase";
+import { type PostPrivacyScope } from "@/lib/posts";
+import { useCreatePostMutation } from "@/queries/posts";
+import { useUserProfileQuery } from "@/queries/profile";
 
 const CAPTION_MAX_LENGTH = 500;
 
@@ -60,40 +57,35 @@ export default function NewPostScreen() {
   const [longitude, setLongitude] = useState<number | undefined>();
   const [locationLine, setLocationLine] = useState<string | null>(null);
   const [resolvingLocation, setResolvingLocation] = useState(false);
-  const [displayName, setDisplayName] = useState("");
   const [caption, setCaption] = useState("");
   const [privacyScope, setPrivacyScope] =
     useState<PostPrivacyScope>("friends_only");
   const [capturing, setCapturing] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [cameraSheetOpen, setCameraSheetOpen] = useState(true);
 
+  const profileQuery = useUserProfileQuery(session?.user.id, {
+    enabled: !!session?.user.id && !!imageUri,
+  });
+
+  const createPostMutation = useCreatePostMutation();
+
+  const displayName =
+    profileQuery.data?.display_name ??
+    authorFallback(session?.user.email);
+
   useEffect(() => {
-    if (!imageUri || !session?.user.id) {
+    if (!imageUri) {
       return;
     }
 
     let cancelled = false;
-    const userId = session.user.id;
-    const userEmail = session.user.email;
 
-    async function loadPreviewMetadata() {
+    async function resolveLocation() {
       setResolvingLocation(true);
       setLocationLine(null);
       setLatitude(undefined);
       setLongitude(undefined);
-      setDisplayName(authorFallback(userEmail));
-
-      const { data: profile } = await supabase
-        .from("user_profiles")
-        .select("display_name")
-        .eq("id", userId)
-        .maybeSingle();
-
-      if (!cancelled && profile?.display_name) {
-        setDisplayName(profile.display_name);
-      }
 
       try {
         const locationPermission =
@@ -130,12 +122,12 @@ export default function NewPostScreen() {
       }
     }
 
-    void loadPreviewMetadata();
+    void resolveLocation();
 
     return () => {
       cancelled = true;
     };
-  }, [imageUri, session?.user.email, session?.user.id]);
+  }, [imageUri]);
 
   async function handleShutter() {
     if (capturing || !cameraRef.current) {
@@ -164,42 +156,35 @@ export default function NewPostScreen() {
     }
   }
 
-  async function handleSubmit() {
-    if (!imageUri || !session?.user.id || !capturedAt || submitting) {
+  function handleSubmit() {
+    if (!imageUri || !session?.user.id || !capturedAt || createPostMutation.isPending) {
       return;
     }
 
-    setSubmitting(true);
     setError(null);
 
-    const { path, error: uploadError } = await uploadPostImage(
-      imageUri,
-      session.user.id,
+    createPostMutation.mutate(
+      {
+        localImageUri: imageUri,
+        userId: session.user.id,
+        capturedAt: capturedAt.toISOString(),
+        caption,
+        privacyScope,
+        latitude,
+        longitude,
+      },
+      {
+        onSuccess: () => router.back(),
+        onError: (mutationError) => {
+          setError(mutationError.message);
+        },
+      },
     );
-    if (uploadError || !path) {
-      setSubmitting(false);
-      setError(uploadError ?? "Failed to upload image.");
-      return;
-    }
-
-    const { error: createError } = await createPost({
-      storagePath: path,
-      capturedAt: capturedAt.toISOString(),
-      caption,
-      privacyScope,
-      latitude,
-      longitude,
-    });
-
-    setSubmitting(false);
-
-    if (createError) {
-      setError(createError);
-      return;
-    }
-
-    router.back();
   }
+
+  const submitting = createPostMutation.isPending;
+  const submitError =
+    error ?? profileQuery.error?.message ?? createPostMutation.error?.message ?? null;
 
   if (!imageUri) {
     if (!permission) {
@@ -228,12 +213,12 @@ export default function NewPostScreen() {
             <UiText textStyle={{ textAlign: "center" }}>
               Grant access to the camera?
             </UiText>
-            {error ? (
+            {submitError ? (
               <UiText
                 testID="new-post-error"
                 textStyle={{ textAlign: "center" }}
               >
-                {error}
+                {submitError}
               </UiText>
             ) : null}
             <Row spacing={12} alignment="center">
@@ -273,7 +258,7 @@ export default function NewPostScreen() {
           <View
             style={[styles.controls, { backgroundColor: colors.background }]}
           >
-            {error ? (
+            {submitError ? (
               <Host matchContents>
                 <UiText
                   testID="new-post-error"
@@ -282,7 +267,7 @@ export default function NewPostScreen() {
                     textAlign: "center",
                   }}
                 >
-                  {error}
+                  {submitError}
                 </UiText>
               </Host>
             ) : null}
@@ -400,12 +385,12 @@ export default function NewPostScreen() {
                   </Host>
                 </Column>
 
-                {error ? (
+                {submitError ? (
                   <UiText
                     testID="new-post-error"
                     textStyle={{ color: "#DC2626" }}
                   >
-                    {error}
+                    {submitError}
                   </UiText>
                 ) : null}
               </Column>
@@ -427,9 +412,7 @@ export default function NewPostScreen() {
           accessibilityLabel="Post"
           disabled={submitting}
           variant="done"
-          onPress={() => {
-            void handleSubmit();
-          }}
+          onPress={handleSubmit}
         >
           Post
         </Stack.Toolbar.Button>

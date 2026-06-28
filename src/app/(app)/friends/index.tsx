@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   type NativeSyntheticEvent,
@@ -7,25 +7,25 @@ import {
 } from "react-native";
 import type { SearchBarCommands } from "react-native-screens";
 import { Button, Column, FieldGroup, Host, Row, Text } from "@expo/ui";
-import { Stack, useFocusEffect, useNavigation } from "expo-router";
+import { Stack, useNavigation } from "expo-router";
 import { ProfileListItem } from "@/components/profile-list-item";
 import { Empty } from "@/components/empty";
-import {
-  cancelFriendRequest,
-  listFriends,
-  listIncomingFriendRequests,
-  listOutgoingFriendRequests,
-  respondToFriendRequest,
-  searchProfiles,
-  sendFriendRequest,
-  type Friend,
-  type FriendRequest,
-  type ProfileSearchResult,
-} from "@/lib/friends";
+import type { ProfileSearchResult } from "@/lib/friends";
 import {
   parseRelationshipStatus,
   type RelationshipKind,
 } from "@/lib/relationship-status";
+import {
+  useCancelFriendRequestMutation,
+  useFriendsQuery,
+  useIncomingRequestsQuery,
+  useOutgoingRequestsQuery,
+  useProfileSearchQuery,
+  useRespondToFriendRequestMutation,
+  useSendFriendRequestMutation,
+} from "@/queries/friends";
+import { queryKeys } from "@/queries/keys";
+import { useRefreshOnFocus } from "@/queries/useRefreshOnFocus";
 
 const SEARCH_DEBOUNCE_MS = 350;
 const MIN_QUERY_LENGTH = 2;
@@ -41,67 +41,51 @@ function formatFriendsSince(iso: string) {
 export default function FriendsScreen() {
   const navigation = useNavigation();
   const searchBarRef = useRef<SearchBarCommands>(null);
-  const [friends, setFriends] = useState<Friend[]>([]);
-  const [incoming, setIncoming] = useState<FriendRequest[]>([]);
-  const [outgoing, setOutgoing] = useState<FriendRequest[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [busyRequestId, setBusyRequestId] = useState<string | null>(null);
   const [query, setQuery] = useState("");
-  const [searchResults, setSearchResults] = useState<ProfileSearchResult[]>([]);
-  const [searchLoading, setSearchLoading] = useState(false);
-  const [searchError, setSearchError] = useState<string | null>(null);
-  const [busyProfileId, setBusyProfileId] = useState<string | null>(null);
+  const [debouncedQuery, setDebouncedQuery] = useState("");
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+
+  const friendsQuery = useFriendsQuery();
+  const incomingQuery = useIncomingRequestsQuery();
+  const outgoingQuery = useOutgoingRequestsQuery();
+  const searchQuery = useProfileSearchQuery(debouncedQuery, {
+    enabled: debouncedQuery.length >= MIN_QUERY_LENGTH,
+  });
+
+  const respondMutation = useRespondToFriendRequestMutation();
+  const cancelMutation = useCancelFriendRequestMutation();
+  const sendMutation = useSendFriendRequestMutation();
+
+  useRefreshOnFocus(queryKeys.friends(), ["friend-requests"]);
 
   const trimmedQuery = query.trim();
   const isSearchActive = trimmedQuery.length >= MIN_QUERY_LENGTH;
 
-  const loadData = useCallback(async (isRefresh = false) => {
-    if (!isRefresh) setLoading(true);
-    setError(null);
+  const friends = friendsQuery.data ?? [];
+  const incoming = incomingQuery.data ?? [];
+  const outgoing = outgoingQuery.data ?? [];
+  const searchResults = searchQuery.data ?? [];
 
-    const [friendsResult, incomingResult, outgoingResult] = await Promise.all([
-      listFriends(),
-      listIncomingFriendRequests(),
-      listOutgoingFriendRequests(),
-    ]);
+  const loading =
+    friendsQuery.isPending ||
+    incomingQuery.isPending ||
+    outgoingQuery.isPending;
+  const error =
+    friendsQuery.error?.message ??
+    incomingQuery.error?.message ??
+    outgoingQuery.error?.message ??
+    null;
 
-    if (friendsResult.error || incomingResult.error || outgoingResult.error) {
-      setError(
-        friendsResult.error ?? incomingResult.error ?? outgoingResult.error,
-      );
-    } else {
-      setFriends(friendsResult.data ?? []);
-      setIncoming(incomingResult.data ?? []);
-      setOutgoing(outgoingResult.data ?? []);
-    }
+  const busyRequestId =
+    respondMutation.isPending
+      ? respondMutation.variables?.requestId ?? null
+      : cancelMutation.isPending
+        ? cancelMutation.variables ?? null
+        : null;
 
-    setLoading(false);
-  }, []);
-
-  const runSearch = useCallback(async (searchQuery: string) => {
-    const trimmed = searchQuery.trim();
-    if (trimmed.length < MIN_QUERY_LENGTH) {
-      setSearchResults([]);
-      setSearchError(null);
-      setSearchLoading(false);
-      return;
-    }
-
-    setSearchLoading(true);
-    setSearchError(null);
-    const { data, error: nextSearchError } = await searchProfiles(trimmed);
-    if (nextSearchError) setSearchError(nextSearchError);
-    else setSearchResults(data ?? []);
-    setSearchLoading(false);
-  }, []);
-
-  useFocusEffect(
-    useCallback(() => {
-      loadData();
-    }, [loadData]),
-  );
+  const busyProfileId = sendMutation.isPending
+    ? (sendMutation.variables ?? null)
+    : null;
 
   useEffect(() => {
     if (!isSearchOpen) {
@@ -124,6 +108,7 @@ export default function FriendsScreen() {
         },
         onCancelButtonPress: () => {
           setQuery("");
+          setDebouncedQuery("");
           setIsSearchOpen(false);
         },
       },
@@ -138,45 +123,25 @@ export default function FriendsScreen() {
 
   useEffect(() => {
     const handle = setTimeout(() => {
-      runSearch(query);
+      setDebouncedQuery(query.trim());
     }, SEARCH_DEBOUNCE_MS);
     return () => clearTimeout(handle);
-  }, [query, runSearch]);
+  }, [query]);
 
-  async function handleRespond(requestId: string, accept: boolean) {
-    setBusyRequestId(requestId);
-    setError(null);
-    const { error: respondError } = await respondToFriendRequest(
-      requestId,
-      accept,
-    );
-    setBusyRequestId(null);
-    if (respondError) setError(respondError);
-    else await loadData(true);
+  function handleRespond(requestId: string, accept: boolean) {
+    respondMutation.mutate({ requestId, accept });
   }
 
-  async function handleCancel(requestId: string) {
-    setBusyRequestId(requestId);
-    setError(null);
-    const { error: cancelError } = await cancelFriendRequest(requestId);
-    setBusyRequestId(null);
-    if (cancelError) setError(cancelError);
-    else await loadData(true);
+  function handleCancel(requestId: string) {
+    cancelMutation.mutate(requestId);
   }
 
-  async function handleSendRequest(profileId: string) {
-    setBusyProfileId(profileId);
-    setSearchError(null);
-    const { error: sendError } = await sendFriendRequest(profileId);
-    setBusyProfileId(null);
-    if (sendError) {
-      setSearchError(sendError);
-      return;
-    }
-    await runSearch(query);
+  function handleSendRequest(profileId: string) {
+    sendMutation.mutate(profileId);
   }
 
   const hasRequests = incoming.length > 0 || outgoing.length > 0;
+  const searchError = searchQuery.error?.message ?? sendMutation.error?.message ?? null;
 
   return (
     <>
@@ -188,7 +153,7 @@ export default function FriendsScreen() {
       >
         {isSearchOpen ? (
           isSearchActive ? (
-            searchLoading ? (
+            searchQuery.isPending ? (
               <ActivityIndicator style={{ marginTop: 32 }} />
             ) : searchError ? (
               <Text testID="friends-search-error">{searchError}</Text>
@@ -235,7 +200,11 @@ export default function FriendsScreen() {
             <Button
               variant="text"
               label="Try again"
-              onPress={() => loadData()}
+              onPress={() => {
+                void friendsQuery.refetch();
+                void incomingQuery.refetch();
+                void outgoingQuery.refetch();
+              }}
             />
           </Column>
         ) : !hasRequests && friends.length === 0 ? (

@@ -1,0 +1,205 @@
+import {
+  useMutation,
+  useQuery,
+  useQueryClient,
+  type UseQueryOptions,
+} from '@tanstack/react-query';
+import {
+  createPost,
+  getPost,
+  getPostImageUrls,
+  getPostViewerEngagement,
+  likePost,
+  listFeedPosts,
+  pinPost,
+  unlikePost,
+  unpinPost,
+  uploadPostImage,
+  type CreatePostInput,
+  type FeedPost,
+  type PostDetail,
+} from '@/lib/posts';
+import { assertOk } from '@/lib/result';
+import { queryKeys } from '@/queries/keys';
+
+export type FeedPostWithImage = FeedPost & { imageUrl?: string };
+export type PostDetailWithImage = (FeedPost | PostDetail) & { imageUrl?: string };
+
+type FeedParams = {
+  at: string;
+  latitude: number;
+  longitude: number;
+};
+
+function hasLocation(params: FeedParams): boolean {
+  return (
+    params.latitude != null &&
+    params.longitude != null &&
+    Number.isFinite(params.latitude) &&
+    Number.isFinite(params.longitude)
+  );
+}
+
+async function fetchFeedWithImages(params: FeedParams): Promise<FeedPostWithImage[]> {
+  const posts = assertOk(await listFeedPosts(params));
+  const urls = assertOk(await getPostImageUrls(posts.map((p) => p.storage_object_path)));
+  return posts.map((post) => ({
+    ...post,
+    imageUrl: urls[post.storage_object_path],
+  }));
+}
+
+async function fetchPostWithImage(postId: string): Promise<PostDetailWithImage> {
+  const post = assertOk(await getPost(postId));
+  const urls = assertOk(await getPostImageUrls([post.storage_object_path]));
+  return {
+    ...post,
+    imageUrl: urls[post.storage_object_path],
+  };
+}
+
+export function useFeedQuery(params: FeedParams) {
+  const enabled = hasLocation(params);
+  return useQuery({
+    queryKey: queryKeys.feed(params),
+    queryFn: () => fetchFeedWithImages(params),
+    enabled,
+  });
+}
+
+export function usePostQuery(
+  postId: string | null,
+  options?: Pick<UseQueryOptions<PostDetailWithImage>, 'placeholderData' | 'enabled'>,
+) {
+  return useQuery({
+    queryKey: queryKeys.post(postId ?? ''),
+    queryFn: () => fetchPostWithImage(postId!),
+    enabled: (options?.enabled ?? true) && !!postId,
+    placeholderData: options?.placeholderData,
+  });
+}
+
+function patchFeedCaches(
+  queryClient: ReturnType<typeof useQueryClient>,
+  postId: string,
+  patch: Partial<Pick<FeedPost, 'user_reaction' | 'is_pinned_by_current_user'>>,
+) {
+  queryClient.setQueriesData<FeedPostWithImage[]>(
+    { queryKey: ['feed'] },
+    (old) =>
+      old?.map((post) => (post.id === postId ? { ...post, ...patch } : post)),
+  );
+}
+
+export function useToggleLikeMutation(postId: string | null) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (nextLiked: boolean) => {
+      if (!postId) throw new Error('Missing post');
+      const result = nextLiked ? await likePost(postId) : await unlikePost(postId);
+      if (result.error) throw new Error(result.error);
+    },
+    onMutate: async (nextLiked) => {
+      if (!postId) return;
+      await queryClient.cancelQueries({ queryKey: queryKeys.post(postId) });
+
+      const previousPost = queryClient.getQueryData<PostDetailWithImage>(
+        queryKeys.post(postId),
+      );
+
+      queryClient.setQueryData<PostDetailWithImage>(queryKeys.post(postId), (old) => {
+        if (!old) return old;
+        return {
+          ...old,
+          user_reaction: (nextLiked ? 'like' : null) as unknown as PostDetail['user_reaction'],
+        };
+      });
+
+      patchFeedCaches(queryClient, postId, {
+        user_reaction: (nextLiked ? 'like' : null) as unknown as FeedPost['user_reaction'],
+      });
+
+      return { previousPost };
+    },
+    onError: (_error, _nextLiked, context) => {
+      if (!postId || !context?.previousPost) return;
+      queryClient.setQueryData(queryKeys.post(postId), context.previousPost);
+      queryClient.invalidateQueries({ queryKey: ['feed'] });
+    },
+    onSettled: () => {
+      if (!postId) return;
+      queryClient.invalidateQueries({ queryKey: queryKeys.post(postId) });
+    },
+  });
+}
+
+export function useTogglePinMutation(postId: string | null) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (nextPinned: boolean) => {
+      if (!postId) throw new Error('Missing post');
+      const result = nextPinned ? await pinPost(postId) : await unpinPost(postId);
+      if (result.error) throw new Error(result.error);
+    },
+    onMutate: async (nextPinned) => {
+      if (!postId) return;
+      await queryClient.cancelQueries({ queryKey: queryKeys.post(postId) });
+
+      const previousPost = queryClient.getQueryData<PostDetailWithImage>(
+        queryKeys.post(postId),
+      );
+
+      queryClient.setQueryData<PostDetailWithImage>(queryKeys.post(postId), (old) =>
+        old
+          ? {
+              ...old,
+              is_pinned_by_current_user: nextPinned,
+            }
+          : old,
+      );
+
+      patchFeedCaches(queryClient, postId, {
+        is_pinned_by_current_user: nextPinned,
+      });
+
+      return { previousPost };
+    },
+    onError: (_error, _nextPinned, context) => {
+      if (!postId || !context?.previousPost) return;
+      queryClient.setQueryData(queryKeys.post(postId), context.previousPost);
+      queryClient.invalidateQueries({ queryKey: ['feed'] });
+    },
+    onSettled: () => {
+      if (!postId) return;
+      queryClient.invalidateQueries({ queryKey: queryKeys.post(postId) });
+    },
+  });
+}
+
+export type CreatePostMutationInput = Omit<CreatePostInput, 'storagePath'> & {
+  localImageUri: string;
+  userId: string;
+};
+
+export function useCreatePostMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (input: CreatePostMutationInput) => {
+      const { localImageUri, userId, ...createInput } = input;
+      const { path, error: uploadError } = await uploadPostImage(localImageUri, userId);
+      if (uploadError || !path) throw new Error(uploadError ?? 'Failed to upload image');
+
+      const result = await createPost({ ...createInput, storagePath: path });
+      if (result.error) throw new Error(result.error);
+      return result.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['feed'] });
+    },
+  });
+}
+
+export { getPostViewerEngagement };
