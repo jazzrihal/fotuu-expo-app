@@ -337,7 +337,7 @@ export default function NewPostScreen() {
           </Column>
 
           <Host ignoreSafeArea="keyboard" style={{ flex: 1 }}>
-            <ScrollView>
+            <ScrollView style={{ padding: 10 }}>
               <Column
                 spacing={12}
                 style={{ paddingHorizontal: 12, paddingBottom: 8 }}
