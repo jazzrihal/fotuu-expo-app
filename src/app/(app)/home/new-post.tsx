@@ -1,19 +1,24 @@
 import { useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  ScrollView,
   StyleSheet,
-  Text,
-  TextInput,
   TouchableOpacity,
   useWindowDimensions,
   View,
 } from 'react-native';
-import { Button, Column, Host, Picker, Text as ExpoText } from '@expo/ui';
+import {
+  Button,
+  Column,
+  Host,
+  Picker,
+  ScrollView,
+  Text as UiText,
+  TextInput,
+} from '@expo/ui';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { Image } from '@/components/image';
 import * as Location from 'expo-location';
-import { Stack, useRouter } from 'expo-router';
+import { Stack, useRouter, useTheme } from 'expo-router';
 import { useAuth } from '@/context/auth';
 import { createPost, uploadPostImage, type PostPrivacyScope } from '@/lib/posts';
 
@@ -23,7 +28,9 @@ export default function NewPostScreen() {
   const router = useRouter();
   const { session } = useAuth();
   const { width } = useWindowDimensions();
+  const { colors, dark } = useTheme();
   const cameraRef = useRef<CameraView>(null);
+  const shutterRingColor = dark ? 'rgba(255, 255, 255, 0.3)' : 'rgba(0, 0, 0, 0.12)';
   const [permission, requestPermission] = useCameraPermissions();
 
   const [imageUri, setImageUri] = useState<string | null>(null);
@@ -122,8 +129,8 @@ export default function NewPostScreen() {
       return (
         <Host style={{ flex: 1 }}>
           <Column spacing={12} style={{ padding: 24 }}>
-            <ExpoText>Camera permission is required to create a post.</ExpoText>
-            {error ? <ExpoText testID="new-post-error">{error}</ExpoText> : null}
+            <UiText>Camera permission is required to create a post.</UiText>
+            {error ? <UiText testID="new-post-error">{error}</UiText> : null}
             <Button
               testID="new-post-request-camera-permission"
               variant="filled"
@@ -140,38 +147,45 @@ export default function NewPostScreen() {
 
     return (
       <>
-        <View style={styles.cameraContainer}>
-          <CameraView ref={cameraRef} style={styles.camera} facing="back" />
-          <View style={styles.controls}>
+        <View style={styles.cameraScreen}>
+          <View style={styles.cameraPreview}>
+            <CameraView ref={cameraRef} style={styles.camera} facing="back" />
+          </View>
+          <View style={[styles.controls, { backgroundColor: colors.background }]}>
             {error ? (
-              <Text selectable testID="new-post-error" style={styles.errorText}>
-                {error}
-              </Text>
+              <Host matchContents>
+                <UiText
+                  testID="new-post-error"
+                  textStyle={{ color: colors.text as string, textAlign: 'center' }}
+                >
+                  {error}
+                </UiText>
+              </Host>
             ) : null}
             <TouchableOpacity
               testID="camera-shutter-button"
               accessibilityLabel="Take photo"
-              style={styles.shutterButton}
+              style={[
+                styles.shutterButton,
+                {
+                  borderColor: colors.text,
+                  backgroundColor: shutterRingColor,
+                },
+              ]}
               disabled={capturing}
               onPress={() => {
                 void handleShutter();
               }}
             >
               {capturing ? (
-                <ActivityIndicator color="#000" />
+                <ActivityIndicator color={colors.text} />
               ) : (
-                <View style={styles.shutterInner} />
+                <View style={[styles.shutterInner, { backgroundColor: colors.text }]} />
               )}
             </TouchableOpacity>
           </View>
         </View>
-        <Stack.Screen
-          options={{
-            headerTransparent: true,
-            headerShadowVisible: false,
-            title: '',
-          }}
-        />
+        <Stack.Screen options={{ title: '' }} />
         <Stack.Toolbar placement="left">
           <Stack.Toolbar.Button
             accessibilityLabel="Cancel"
@@ -187,10 +201,7 @@ export default function NewPostScreen() {
 
   return (
     <>
-      <ScrollView
-        style={{ flex: 1 }}
-        contentInsetAdjustmentBehavior="automatic"
-      >
+      <View style={styles.previewScreen}>
         <Image
           testID="new-post-preview"
           source={{ uri: imageUri }}
@@ -200,49 +211,45 @@ export default function NewPostScreen() {
           }}
           contentFit="cover"
         />
+        <Host ignoreSafeArea="keyboard" style={{ flex: 1 }}>
+          <ScrollView>
+            <Column spacing={16} style={{ padding: 24 }}>
+              <Column spacing={8}>
+                <UiText>Caption</UiText>
+                <TextInput
+                  testID="new-post-caption"
+                  onChangeText={setCaption}
+                  placeholder="Write a caption…"
+                  maxLength={CAPTION_MAX_LENGTH}
+                  multiline
+                />
+              </Column>
 
-        <View style={styles.formContent}>
-          <View style={styles.section}>
-            <Text selectable style={styles.sectionLabel}>
-              Caption
-            </Text>
-            <TextInput
-              testID="new-post-caption"
-              value={caption}
-              onChangeText={setCaption}
-              placeholder="Write a caption…"
-              maxLength={CAPTION_MAX_LENGTH}
-              multiline
-              textAlignVertical="top"
-              style={styles.captionInput}
-            />
-          </View>
+              <Column spacing={8}>
+                <UiText>Who can see this?</UiText>
+                <Host matchContents>
+                  <Picker
+                    testID="new-post-privacy-picker"
+                    selectedValue={privacyScope}
+                    onValueChange={(value) => setPrivacyScope(value as PostPrivacyScope)}
+                    appearance="menu"
+                  >
+                    <Picker.Item label="Public" value="public" />
+                    <Picker.Item label="Friends" value="friends_only" />
+                    <Picker.Item label="Private" value="private" />
+                  </Picker>
+                </Host>
+              </Column>
 
-          <View style={styles.section}>
-            <Text selectable style={styles.sectionLabel}>
-              Who can see this?
-            </Text>
-            <Host matchContents>
-              <Picker
-                testID="new-post-privacy-picker"
-                selectedValue={privacyScope}
-                onValueChange={(value) => setPrivacyScope(value as PostPrivacyScope)}
-                appearance="menu"
-              >
-                <Picker.Item label="Public" value="public" />
-                <Picker.Item label="Friends" value="friends_only" />
-                <Picker.Item label="Private" value="private" />
-              </Picker>
-            </Host>
-          </View>
-
-          {error ? (
-            <Text selectable testID="new-post-error" style={styles.previewError}>
-              {error}
-            </Text>
-          ) : null}
-        </View>
-      </ScrollView>
+              {error ? (
+                <UiText testID="new-post-error" textStyle={{ color: '#DC2626' }}>
+                  {error}
+                </UiText>
+              ) : null}
+            </Column>
+          </ScrollView>
+        </Host>
+      </View>
       <Stack.Toolbar placement="left">
         <Stack.Toolbar.Button
           accessibilityLabel="Cancel"
@@ -269,28 +276,32 @@ export default function NewPostScreen() {
 }
 
 const styles = StyleSheet.create({
-  cameraContainer: {
+  cameraScreen: {
     flex: 1,
     backgroundColor: '#000',
+  },
+  cameraPreview: {
+    flex: 1,
+    overflow: 'hidden',
   },
   camera: {
     flex: 1,
   },
   controls: {
     height: 160,
-    backgroundColor: '#000',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 16,
     paddingBottom: 16,
+  },
+  previewScreen: {
+    flex: 1,
   },
   shutterButton: {
     width: 72,
     height: 72,
     borderRadius: 36,
     borderWidth: 4,
-    borderColor: '#fff',
-    backgroundColor: 'rgba(255, 255, 255, 0.3)',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -298,34 +309,5 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: '#fff',
-  },
-  errorText: {
-    color: '#fff',
-    textAlign: 'center',
-    paddingHorizontal: 24,
-  },
-  formContent: {
-    padding: 24,
-    gap: 16,
-  },
-  section: {
-    gap: 8,
-  },
-  sectionLabel: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  captionInput: {
-    minHeight: 80,
-    borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 8,
-    borderCurve: 'continuous',
-    padding: 12,
-    fontSize: 16,
-  },
-  previewError: {
-    color: '#c00',
   },
 });
