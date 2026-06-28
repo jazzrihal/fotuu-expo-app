@@ -5,6 +5,7 @@ import {
   useWindowDimensions,
 } from "react-native";
 import { Column, Host, RNHostView, Text } from "@expo/ui";
+import { Empty } from "@/components/empty";
 import { Image } from "@/components/image";
 import { Stack, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useAuth } from "@/context/auth";
@@ -206,9 +207,11 @@ export default function PostDetailScreen() {
     return (
       <>
         <Stack.Screen options={{ title: "", headerLargeTitle: false }} />
-        <Host style={{ flex: 1, padding: 24 }}>
-          <Text>Post not found.</Text>
-        </Host>
+        <Empty
+          testID="home-post-not-found"
+          title="Post not found"
+          description="It may have been removed."
+        />
       </>
     );
   }

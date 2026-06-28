@@ -11,12 +11,15 @@ import {
   Column,
   Host,
   Picker,
+  Row,
   RNHostView,
   ScrollView,
   Text as UiText,
   TextInput,
 } from "@expo/ui";
 import { CameraView, useCameraPermissions } from "expo-camera";
+import { Empty } from "@/components/empty";
+import { EmptyActionsSheet } from "@/components/empty-actions-sheet";
 import { Image } from "@/components/image";
 import * as Location from "expo-location";
 import { Stack, useRouter, useTheme } from "expo-router";
@@ -64,6 +67,7 @@ export default function NewPostScreen() {
   const [capturing, setCapturing] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [cameraSheetOpen, setCameraSheetOpen] = useState(true);
 
   useEffect(() => {
     if (!imageUri || !session?.user.id) {
@@ -210,25 +214,53 @@ export default function NewPostScreen() {
 
     if (!permission.granted) {
       return (
-        <Host style={{ flex: 1 }}>
-          <Column spacing={12} style={{ padding: 24 }}>
-            <UiText>Camera permission is required to create a post.</UiText>
-            {error ? <UiText testID="new-post-error">{error}</UiText> : null}
-            <Button
-              testID="new-post-request-camera-permission"
-              variant="filled"
-              label="Grant camera access"
-              onPress={() => {
-                void requestPermission();
-              }}
-            />
-            <Button
-              variant="text"
-              label="Cancel"
+        <>
+          <Empty
+            testID="new-post-camera-permission-required"
+            title="Camera access required"
+            description="Allow camera access to take a photo for your post."
+          />
+          <EmptyActionsSheet
+            isPresented={cameraSheetOpen}
+            onDismiss={() => setCameraSheetOpen(false)}
+            testID="new-post-camera-permission-actions"
+          >
+            <UiText textStyle={{ textAlign: "center" }}>
+              Grant access to the camera?
+            </UiText>
+            {error ? (
+              <UiText
+                testID="new-post-error"
+                textStyle={{ textAlign: "center" }}
+              >
+                {error}
+              </UiText>
+            ) : null}
+            <Row spacing={12} alignment="center">
+              <Button
+                testID="new-post-request-camera-permission"
+                variant="filled"
+                label="Accept"
+                onPress={() => {
+                  void requestPermission();
+                }}
+              />
+              <Button
+                variant="outlined"
+                label="Reject"
+                onPress={() => router.back()}
+              />
+            </Row>
+          </EmptyActionsSheet>
+          <Stack.Toolbar placement="left">
+            <Stack.Toolbar.Button
+              accessibilityLabel="Back"
               onPress={() => router.back()}
-            />
-          </Column>
-        </Host>
+            >
+              Back
+            </Stack.Toolbar.Button>
+          </Stack.Toolbar>
+        </>
       );
     }
 

@@ -9,6 +9,7 @@ import type { SearchBarCommands } from "react-native-screens";
 import { Button, Column, FieldGroup, Host, Row, Text } from "@expo/ui";
 import { Stack, useFocusEffect, useNavigation } from "expo-router";
 import { ProfileListItem } from "@/components/profile-list-item";
+import { Empty } from "@/components/empty";
 import {
   cancelFriendRequest,
   listFriends,
@@ -187,16 +188,20 @@ export default function FriendsScreen() {
       >
         {isSearchOpen ? (
           isSearchActive ? (
-            <FieldGroup>
-              <FieldGroup.Section testID="friends-search-results">
-                {searchLoading ? (
-                  <Text>Searching…</Text>
-                ) : searchError ? (
-                  <Text testID="friends-search-error">{searchError}</Text>
-                ) : searchResults.length === 0 ? (
-                  <Text testID="friends-search-empty">No profiles found.</Text>
-                ) : (
-                  searchResults.map((item) => {
+            searchLoading ? (
+              <ActivityIndicator style={{ marginTop: 32 }} />
+            ) : searchError ? (
+              <Text testID="friends-search-error">{searchError}</Text>
+            ) : searchResults.length === 0 ? (
+              <Empty
+                testID="friends-search-empty"
+                title="No profiles found"
+                description="Try a different search term."
+              />
+            ) : (
+              <FieldGroup>
+                <FieldGroup.Section testID="friends-search-results">
+                  {searchResults.map((item) => {
                     const relationship = parseRelationshipStatus(
                       item.relationship_status,
                     );
@@ -215,10 +220,10 @@ export default function FriendsScreen() {
                         })}
                       />
                     );
-                  })
-                )}
-              </FieldGroup.Section>
-            </FieldGroup>
+                  })}
+                </FieldGroup.Section>
+              </FieldGroup>
+            )
           ) : null
         ) : loading ? (
           <ActivityIndicator style={{ marginTop: 32 }} />
@@ -233,14 +238,14 @@ export default function FriendsScreen() {
               onPress={() => loadData()}
             />
           </Column>
+        ) : !hasRequests && friends.length === 0 ? (
+          <Empty
+            testID="friends-empty"
+            title="No friends yet"
+            description="Search for people to send a request."
+          />
         ) : (
-          <>
-            {!hasRequests && friends.length === 0 ? (
-              <Text testID="friends-empty" style={{ padding: 24 }}>
-                No friends yet. Search for people to send a request.
-              </Text>
-            ) : null}
-            <FieldGroup>
+          <FieldGroup>
               {hasRequests ? (
                 <FieldGroup.Section
                   title="Pending"
@@ -345,7 +350,6 @@ export default function FriendsScreen() {
                 </FieldGroup.Section>
               ) : null}
             </FieldGroup>
-          </>
         )}
       </Host>
       <Stack.Toolbar placement="right">

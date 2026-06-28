@@ -8,7 +8,9 @@ import {
   View,
 } from "react-native";
 import { FlashList } from "@shopify/flash-list";
-import { Button, Column, Host, Text } from "@expo/ui";
+import { Button, Host, Row, Text } from "@expo/ui";
+import { Empty } from "@/components/empty";
+import { EmptyActionsSheet } from "@/components/empty-actions-sheet";
 import { useObserve } from "@legendapp/state/react";
 import { Image } from "@/components/image";
 import * as Location from "expo-location";
@@ -51,6 +53,7 @@ export default function Home() {
   const [refreshing, setRefreshing] = useState(false);
   const [initializingLocation, setInitializingLocation] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [locationSheetOpen, setLocationSheetOpen] = useState(false);
 
   useObserve(locationPicker$.confirmed, async ({ value }) => {
     if (!value) {
@@ -179,6 +182,37 @@ export default function Home() {
     router.push("/(app)/home/map-picker-modal");
   }, [selectedLocation, router]);
 
+  const acceptLocation = useCallback(async () => {
+    const permission = await Location.requestForegroundPermissionsAsync();
+    if (!permission.granted) {
+      return;
+    }
+
+    try {
+      const position = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+      });
+      const coordinates = {
+        latitude: position.coords.latitude,
+        longitude: position.coords.longitude,
+      };
+      setSelectedLocation(coordinates);
+      setLocationLabel(await resolveLocationLabel(coordinates));
+      setLocationSheetOpen(false);
+    } catch {
+      setLocationLabel("Select location");
+    }
+  }, []);
+
+  const showLocationEmpty =
+    !initializingLocation && !loading && !selectedLocation;
+
+  useEffect(() => {
+    if (showLocationEmpty) {
+      setLocationSheetOpen(true);
+    }
+  }, [showLocationEmpty]);
+
   const openPostDetail = useCallback(
     (post: FeedPostWithImage) => {
       router.push({
@@ -222,14 +256,11 @@ export default function Home() {
 
     if (!selectedLocation) {
       return (
-        <Host matchContents style={styles.feedMessage}>
-          <Column spacing={12}>
-            <Text testID="home-feed-location-required">
-              Location is required to load nearby posts.
-            </Text>
-            <Button label="Select location" onPress={openLocationPicker} />
-          </Column>
-        </Host>
+        <Empty
+          testID="home-feed-location-required"
+          title="Location required"
+          description="Allow location access or choose a place on the map."
+        />
       );
     }
 
@@ -243,9 +274,11 @@ export default function Home() {
 
     if (posts.length === 0) {
       return (
-        <Host matchContents style={styles.feedMessage}>
-          <Text testID="home-feed-empty">No posts nearby.</Text>
-        </Host>
+        <Empty
+          testID="home-feed-empty"
+          title="No posts nearby"
+          description="Try another date or location."
+        />
       );
     }
 
@@ -276,6 +309,33 @@ export default function Home() {
       <View testID="home-feed" style={styles.feed}>
         {feedContent}
       </View>
+
+      {showLocationEmpty ? (
+        <EmptyActionsSheet
+          isPresented={locationSheetOpen}
+          onDismiss={() => setLocationSheetOpen(false)}
+          testID="home-feed-location-actions"
+        >
+          <Text textStyle={{ textAlign: "center" }}>
+            Grant access to your location?
+          </Text>
+          <Row spacing={12} alignment="center">
+            <Button
+              testID="home-feed-accept-location"
+              variant="filled"
+              label="Accept"
+              onPress={() => {
+                void acceptLocation();
+              }}
+            />
+            <Button
+              variant="outlined"
+              label="Reject"
+              onPress={() => setLocationSheetOpen(false)}
+            />
+          </Row>
+        </EmptyActionsSheet>
+      ) : null}
 
       <Stack.Toolbar placement="right">
         <Stack.Toolbar.Button
