@@ -22,6 +22,8 @@ env:
     id: "camera-shutter-button"
 - assertVisible:
     id: "new-post-preview"
+- assertVisible:
+    id: "new-post-captured-at"
 - tapOn:
     id: "new-post-caption"
 - inputText: ${E2E_POST_CAPTION}

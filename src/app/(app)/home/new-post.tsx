@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   StyleSheet,
@@ -11,6 +11,7 @@ import {
   Column,
   Host,
   Picker,
+  RNHostView,
   ScrollView,
   Text as UiText,
   TextInput,
@@ -20,13 +21,24 @@ import { Image } from "@/components/image";
 import * as Location from "expo-location";
 import { Stack, useRouter, useTheme } from "expo-router";
 import { useAuth } from "@/context/auth";
+import { resolvePostLocationParts } from "@/lib/location-label";
+import { buildLocationLine, formatCapturedAt } from "@/lib/post-display";
 import {
   createPost,
   uploadPostImage,
   type PostPrivacyScope,
 } from "@/lib/posts";
+import { supabase } from "@/lib/supabase";
 
 const CAPTION_MAX_LENGTH = 500;
+
+function authorFallback(email: string | undefined): string {
+  if (!email) {
+    return "";
+  }
+
+  return email.split("@")[0] ?? "";
+}
 
 export default function NewPostScreen() {
   const router = useRouter();
@@ -40,12 +52,86 @@ export default function NewPostScreen() {
   const [permission, requestPermission] = useCameraPermissions();
 
   const [imageUri, setImageUri] = useState<string | null>(null);
+  const [capturedAt, setCapturedAt] = useState<Date | null>(null);
+  const [latitude, setLatitude] = useState<number | undefined>();
+  const [longitude, setLongitude] = useState<number | undefined>();
+  const [locationLine, setLocationLine] = useState<string | null>(null);
+  const [resolvingLocation, setResolvingLocation] = useState(false);
+  const [displayName, setDisplayName] = useState("");
   const [caption, setCaption] = useState("");
   const [privacyScope, setPrivacyScope] =
     useState<PostPrivacyScope>("friends_only");
   const [capturing, setCapturing] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!imageUri || !session?.user.id) {
+      return;
+    }
+
+    let cancelled = false;
+    const userId = session.user.id;
+    const userEmail = session.user.email;
+
+    async function loadPreviewMetadata() {
+      setResolvingLocation(true);
+      setLocationLine(null);
+      setLatitude(undefined);
+      setLongitude(undefined);
+      setDisplayName(authorFallback(userEmail));
+
+      const { data: profile } = await supabase
+        .from("user_profiles")
+        .select("display_name")
+        .eq("id", userId)
+        .maybeSingle();
+
+      if (!cancelled && profile?.display_name) {
+        setDisplayName(profile.display_name);
+      }
+
+      try {
+        const locationPermission =
+          await Location.requestForegroundPermissionsAsync();
+        if (!locationPermission.granted) {
+          return;
+        }
+
+        const position = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Balanced,
+        });
+        if (cancelled) {
+          return;
+        }
+
+        const coords = {
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+        };
+        setLatitude(coords.latitude);
+        setLongitude(coords.longitude);
+
+        const parts = await resolvePostLocationParts(coords);
+        if (!cancelled) {
+          const line = buildLocationLine(parts);
+          setLocationLine(line || null);
+        }
+      } catch {
+        // Location is optional; continue without coordinates.
+      } finally {
+        if (!cancelled) {
+          setResolvingLocation(false);
+        }
+      }
+    }
+
+    void loadPreviewMetadata();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [imageUri, session?.user.email, session?.user.id]);
 
   async function handleShutter() {
     if (capturing || !cameraRef.current) {
@@ -65,6 +151,7 @@ export default function NewPostScreen() {
         return;
       }
 
+      setCapturedAt(new Date());
       setImageUri(photo.uri);
     } catch {
       setError("Failed to capture photo. Please try again.");
@@ -74,29 +161,12 @@ export default function NewPostScreen() {
   }
 
   async function handleSubmit() {
-    if (!imageUri || !session?.user.id || submitting) {
+    if (!imageUri || !session?.user.id || !capturedAt || submitting) {
       return;
     }
 
     setSubmitting(true);
     setError(null);
-
-    let latitude: number | undefined;
-    let longitude: number | undefined;
-
-    try {
-      const locationPermission =
-        await Location.requestForegroundPermissionsAsync();
-      if (locationPermission.granted) {
-        const position = await Location.getCurrentPositionAsync({
-          accuracy: Location.Accuracy.Balanced,
-        });
-        latitude = position.coords.latitude;
-        longitude = position.coords.longitude;
-      }
-    } catch {
-      // Location is optional; continue without coordinates.
-    }
 
     const { path, error: uploadError } = await uploadPostImage(
       imageUri,
@@ -110,7 +180,7 @@ export default function NewPostScreen() {
 
     const { error: createError } = await createPost({
       storagePath: path,
-      capturedAt: new Date().toISOString(),
+      capturedAt: capturedAt.toISOString(),
       caption,
       privacyScope,
       latitude,
@@ -228,20 +298,50 @@ export default function NewPostScreen() {
 
   return (
     <>
-      <View style={styles.previewScreen}>
-        <Image
-          testID="new-post-preview"
-          source={{ uri: imageUri }}
-          style={{
-            width,
-            height: width,
-          }}
-          contentFit="cover"
-        />
-        <Host ignoreSafeArea="keyboard" style={{ flex: 1 }}>
-          <ScrollView>
-            <Column spacing={16} style={{ padding: 24 }}>
-              <Column spacing={8}>
+      <Host style={{ flex: 1 }} useViewportSizeMeasurement>
+        <Column>
+          <RNHostView matchContents>
+            <Image
+              testID="new-post-preview"
+              source={{ uri: imageUri }}
+              style={{
+                width,
+                height: width,
+              }}
+              contentFit="cover"
+            />
+          </RNHostView>
+
+          <Column
+            spacing={4}
+            style={{ paddingHorizontal: 12, paddingVertical: 8 }}
+          >
+            {displayName ? (
+              <UiText
+                testID="new-post-author"
+                textStyle={{ fontWeight: "600" }}
+              >
+                {displayName}
+              </UiText>
+            ) : null}
+            {resolvingLocation ? (
+              <UiText>Getting location…</UiText>
+            ) : locationLine ? (
+              <UiText testID="new-post-location">{locationLine}</UiText>
+            ) : null}
+            {capturedAt ? (
+              <UiText testID="new-post-captured-at">
+                {formatCapturedAt(capturedAt)}
+              </UiText>
+            ) : null}
+          </Column>
+
+          <Host ignoreSafeArea="keyboard" style={{ flex: 1 }}>
+            <ScrollView>
+              <Column
+                spacing={12}
+                style={{ paddingHorizontal: 12, paddingBottom: 8 }}
+              >
                 <TextInput
                   testID="new-post-caption"
                   onChangeText={setCaption}
@@ -249,38 +349,38 @@ export default function NewPostScreen() {
                   maxLength={CAPTION_MAX_LENGTH}
                   multiline
                 />
-              </Column>
 
-              <Column spacing={8}>
-                <UiText>Who can see this?</UiText>
-                <Host matchContents>
-                  <Picker
-                    testID="new-post-privacy-picker"
-                    selectedValue={privacyScope}
-                    onValueChange={(value) =>
-                      setPrivacyScope(value as PostPrivacyScope)
-                    }
-                    appearance="menu"
+                <Column spacing={4}>
+                  <UiText>Who can see this?</UiText>
+                  <Host matchContents>
+                    <Picker
+                      testID="new-post-privacy-picker"
+                      selectedValue={privacyScope}
+                      onValueChange={(value) =>
+                        setPrivacyScope(value as PostPrivacyScope)
+                      }
+                      appearance="menu"
+                    >
+                      <Picker.Item label="Public" value="public" />
+                      <Picker.Item label="Friends" value="friends_only" />
+                      <Picker.Item label="Private" value="private" />
+                    </Picker>
+                  </Host>
+                </Column>
+
+                {error ? (
+                  <UiText
+                    testID="new-post-error"
+                    textStyle={{ color: "#DC2626" }}
                   >
-                    <Picker.Item label="Public" value="public" />
-                    <Picker.Item label="Friends" value="friends_only" />
-                    <Picker.Item label="Private" value="private" />
-                  </Picker>
-                </Host>
+                    {error}
+                  </UiText>
+                ) : null}
               </Column>
-
-              {error ? (
-                <UiText
-                  testID="new-post-error"
-                  textStyle={{ color: "#DC2626" }}
-                >
-                  {error}
-                </UiText>
-              ) : null}
-            </Column>
-          </ScrollView>
-        </Host>
-      </View>
+            </ScrollView>
+          </Host>
+        </Column>
+      </Host>
       <Stack.Toolbar placement="left">
         <Stack.Toolbar.Button
           accessibilityLabel="Cancel"
@@ -324,9 +424,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: 16,
     paddingBottom: 16,
-  },
-  previewScreen: {
-    flex: 1,
   },
   shutterButton: {
     width: 72,

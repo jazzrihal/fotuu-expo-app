@@ -5,13 +5,10 @@ import { Column, Host, RNHostView, ScrollView, Text } from '@expo/ui';
 import { Image } from '@/components/image';
 import { Stack, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { TabBarContext } from '@/context/tab-bar';
+import { buildLocationLine, formatCapturedAt } from '@/lib/post-display';
 import type { FeedPost } from '@/lib/posts';
 
 type FeedPostDetail = FeedPost & { imageUrl?: string };
-
-function formatCapturedAt(value: string): string {
-  return new Date(value).toLocaleString();
-}
 
 export default function PostDetailScreen() {
   const { width, height } = useWindowDimensions();
@@ -49,7 +46,11 @@ export default function PostDetailScreen() {
     );
   }
 
-  const locationLine = [post.address, post.city, post.region].filter(Boolean).join(', ');
+  const locationLine = buildLocationLine({
+    address: post.address,
+    city: post.city,
+    region: post.region,
+  });
 
   return (
     <>
