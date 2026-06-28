@@ -549,12 +549,14 @@ export type Database = {
           created_at: string
           display_name: string
           id: string
+          is_pinned_by_current_user: boolean
           latitude: number
           longitude: number
           privacy_scope: Database["public"]["Enums"]["post_privacy_scope"]
           region: string
           storage_bucket_id: string
           storage_object_path: string
+          user_reaction: Database["public"]["Enums"]["post_reaction_type"]
           username: string
         }[]
       }
@@ -584,6 +586,7 @@ export type Database = {
           distance_meters: number
           feed_score: number
           id: string
+          is_pinned_by_current_user: boolean
           latitude: number
           longitude: number
           privacy_scope: Database["public"]["Enums"]["post_privacy_scope"]
@@ -591,6 +594,7 @@ export type Database = {
           storage_bucket_id: string
           storage_object_path: string
           time_delta_seconds: number
+          user_reaction: Database["public"]["Enums"]["post_reaction_type"]
           username: string
         }[]
       }
@@ -642,7 +646,8 @@ export type Database = {
           display_name: string
           id: string
           is_authored: boolean
-          is_pinned: boolean
+          is_pinned_by_current_user: boolean
+          is_pinned_to_current_profile: boolean
           latitude: number
           longitude: number
           pinned_at: string
@@ -651,6 +656,7 @@ export type Database = {
           region: string
           storage_bucket_id: string
           storage_object_path: string
+          user_reaction: Database["public"]["Enums"]["post_reaction_type"]
           username: string
         }[]
       }
@@ -680,12 +686,14 @@ export type Database = {
           created_at: string
           display_name: string
           id: string
+          is_pinned_by_current_user: boolean
           latitude: number
           longitude: number
           privacy_scope: Database["public"]["Enums"]["post_privacy_scope"]
           region: string
           storage_bucket_id: string
           storage_object_path: string
+          user_reaction: Database["public"]["Enums"]["post_reaction_type"]
           username: string
         }[]
       }
