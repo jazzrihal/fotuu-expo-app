@@ -1,11 +1,11 @@
-import { useRef, useState } from 'react';
+import { useRef, useState } from "react";
 import {
   ActivityIndicator,
   StyleSheet,
   TouchableOpacity,
   useWindowDimensions,
   View,
-} from 'react-native';
+} from "react-native";
 import {
   Button,
   Column,
@@ -14,13 +14,17 @@ import {
   ScrollView,
   Text as UiText,
   TextInput,
-} from '@expo/ui';
-import { CameraView, useCameraPermissions } from 'expo-camera';
-import { Image } from '@/components/image';
-import * as Location from 'expo-location';
-import { Stack, useRouter, useTheme } from 'expo-router';
-import { useAuth } from '@/context/auth';
-import { createPost, uploadPostImage, type PostPrivacyScope } from '@/lib/posts';
+} from "@expo/ui";
+import { CameraView, useCameraPermissions } from "expo-camera";
+import { Image } from "@/components/image";
+import * as Location from "expo-location";
+import { Stack, useRouter, useTheme } from "expo-router";
+import { useAuth } from "@/context/auth";
+import {
+  createPost,
+  uploadPostImage,
+  type PostPrivacyScope,
+} from "@/lib/posts";
 
 const CAPTION_MAX_LENGTH = 500;
 
@@ -30,12 +34,15 @@ export default function NewPostScreen() {
   const { width } = useWindowDimensions();
   const { colors, dark } = useTheme();
   const cameraRef = useRef<CameraView>(null);
-  const shutterRingColor = dark ? 'rgba(255, 255, 255, 0.3)' : 'rgba(0, 0, 0, 0.12)';
+  const shutterRingColor = dark
+    ? "rgba(255, 255, 255, 0.3)"
+    : "rgba(0, 0, 0, 0.12)";
   const [permission, requestPermission] = useCameraPermissions();
 
   const [imageUri, setImageUri] = useState<string | null>(null);
-  const [caption, setCaption] = useState('');
-  const [privacyScope, setPrivacyScope] = useState<PostPrivacyScope>('friends_only');
+  const [caption, setCaption] = useState("");
+  const [privacyScope, setPrivacyScope] =
+    useState<PostPrivacyScope>("friends_only");
   const [capturing, setCapturing] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -54,13 +61,13 @@ export default function NewPostScreen() {
       });
 
       if (!photo?.uri) {
-        setError('Failed to capture photo. Please try again.');
+        setError("Failed to capture photo. Please try again.");
         return;
       }
 
       setImageUri(photo.uri);
     } catch {
-      setError('Failed to capture photo. Please try again.');
+      setError("Failed to capture photo. Please try again.");
     } finally {
       setCapturing(false);
     }
@@ -78,7 +85,8 @@ export default function NewPostScreen() {
     let longitude: number | undefined;
 
     try {
-      const locationPermission = await Location.requestForegroundPermissionsAsync();
+      const locationPermission =
+        await Location.requestForegroundPermissionsAsync();
       if (locationPermission.granted) {
         const position = await Location.getCurrentPositionAsync({
           accuracy: Location.Accuracy.Balanced,
@@ -90,10 +98,13 @@ export default function NewPostScreen() {
       // Location is optional; continue without coordinates.
     }
 
-    const { path, error: uploadError } = await uploadPostImage(imageUri, session.user.id);
+    const { path, error: uploadError } = await uploadPostImage(
+      imageUri,
+      session.user.id,
+    );
     if (uploadError || !path) {
       setSubmitting(false);
-      setError(uploadError ?? 'Failed to upload image.');
+      setError(uploadError ?? "Failed to upload image.");
       return;
     }
 
@@ -119,7 +130,9 @@ export default function NewPostScreen() {
   if (!imageUri) {
     if (!permission) {
       return (
-        <Host style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <Host
+          style={{ flex: 1, justifyContent: "center", alignItems: "center" }}
+        >
           <ActivityIndicator size="large" />
         </Host>
       );
@@ -139,7 +152,11 @@ export default function NewPostScreen() {
                 void requestPermission();
               }}
             />
-            <Button variant="text" label="Cancel" onPress={() => router.back()} />
+            <Button
+              variant="text"
+              label="Cancel"
+              onPress={() => router.back()}
+            />
           </Column>
         </Host>
       );
@@ -151,12 +168,17 @@ export default function NewPostScreen() {
           <View style={styles.cameraPreview}>
             <CameraView ref={cameraRef} style={styles.camera} facing="back" />
           </View>
-          <View style={[styles.controls, { backgroundColor: colors.background }]}>
+          <View
+            style={[styles.controls, { backgroundColor: colors.background }]}
+          >
             {error ? (
               <Host matchContents>
                 <UiText
                   testID="new-post-error"
-                  textStyle={{ color: colors.text as string, textAlign: 'center' }}
+                  textStyle={{
+                    color: colors.text as string,
+                    textAlign: "center",
+                  }}
                 >
                   {error}
                 </UiText>
@@ -180,12 +202,17 @@ export default function NewPostScreen() {
               {capturing ? (
                 <ActivityIndicator color={colors.text} />
               ) : (
-                <View style={[styles.shutterInner, { backgroundColor: colors.text }]} />
+                <View
+                  style={[
+                    styles.shutterInner,
+                    { backgroundColor: colors.text },
+                  ]}
+                />
               )}
             </TouchableOpacity>
           </View>
         </View>
-        <Stack.Screen options={{ title: '' }} />
+        <Stack.Screen options={{ title: "" }} />
         <Stack.Toolbar placement="left">
           <Stack.Toolbar.Button
             accessibilityLabel="Cancel"
@@ -215,7 +242,6 @@ export default function NewPostScreen() {
           <ScrollView>
             <Column spacing={16} style={{ padding: 24 }}>
               <Column spacing={8}>
-                <UiText>Caption</UiText>
                 <TextInput
                   testID="new-post-caption"
                   onChangeText={setCaption}
@@ -231,7 +257,9 @@ export default function NewPostScreen() {
                   <Picker
                     testID="new-post-privacy-picker"
                     selectedValue={privacyScope}
-                    onValueChange={(value) => setPrivacyScope(value as PostPrivacyScope)}
+                    onValueChange={(value) =>
+                      setPrivacyScope(value as PostPrivacyScope)
+                    }
                     appearance="menu"
                   >
                     <Picker.Item label="Public" value="public" />
@@ -242,7 +270,10 @@ export default function NewPostScreen() {
               </Column>
 
               {error ? (
-                <UiText testID="new-post-error" textStyle={{ color: '#DC2626' }}>
+                <UiText
+                  testID="new-post-error"
+                  textStyle={{ color: "#DC2626" }}
+                >
                   {error}
                 </UiText>
               ) : null}
@@ -278,19 +309,19 @@ export default function NewPostScreen() {
 const styles = StyleSheet.create({
   cameraScreen: {
     flex: 1,
-    backgroundColor: '#000',
+    backgroundColor: "#000",
   },
   cameraPreview: {
     flex: 1,
-    overflow: 'hidden',
+    overflow: "hidden",
   },
   camera: {
     flex: 1,
   },
   controls: {
     height: 160,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     gap: 16,
     paddingBottom: 16,
   },
@@ -302,8 +333,8 @@ const styles = StyleSheet.create({
     height: 72,
     borderRadius: 36,
     borderWidth: 4,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
   shutterInner: {
     width: 56,
