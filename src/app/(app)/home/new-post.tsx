@@ -302,13 +302,13 @@ export default function NewPostScreen() {
         <Column>
           <RNHostView matchContents>
             <Image
+              resizeOnTap
               testID="new-post-preview"
               source={{ uri: imageUri }}
               style={{
                 width,
                 height: width,
               }}
-              contentFit="cover"
             />
           </RNHostView>
 

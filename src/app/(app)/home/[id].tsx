@@ -63,10 +63,10 @@ export default function PostDetailScreen() {
         <Column>
           <RNHostView matchContents>
             <Image
+              resizeOnTap
               testID="home-post-detail-image"
               source={post.imageUrl ? { uri: post.imageUrl } : undefined}
               style={{ width, height: (height * 2) / 3 }}
-              contentFit="cover"
             />
           </RNHostView>
 

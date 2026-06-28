@@ -16,6 +16,12 @@ env:
     id: "home-post-detail"
 - assertVisible:
     id: "home-post-detail-image"
+- tapOn:
+    id: "home-post-detail-image"
+- assertVisible: "Photo, contain"
+- tapOn:
+    id: "home-post-detail-image"
+- assertVisible: "Photo, cover"
 - assertVisible:
     id: "home-post-detail-author"
 - assertVisible:

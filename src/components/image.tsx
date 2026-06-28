@@ -1,23 +1,69 @@
 /* eslint-disable no-restricted-imports -- wrapper delegates to expo-image */
-import { Image as ExpoImage, type ImageProps } from "expo-image";
+import { Image as ExpoImage, type ImageContentFit, type ImageProps } from "expo-image";
 import * as Device from "expo-device";
-import { StyleSheet } from "react-native";
+import { useCallback, useState, type ComponentType } from "react";
+import { Pressable, StyleSheet } from "react-native";
 
 const SIMULATOR_BACKGROUND = "grey";
 
-function ImageComponent({ style, ...props }: ImageProps) {
-  return (
+type FotuuImageProps = ImageProps & {
+  resizeOnTap?: boolean;
+};
+
+function toggleContentFit(fit: ImageContentFit): ImageContentFit {
+  return fit === "cover" ? "contain" : "cover";
+}
+
+function contentFitAccessibilityLabel(fit: ImageContentFit): string {
+  return `Photo, ${fit}`;
+}
+
+function ImageComponent({
+  style,
+  contentFit = "cover",
+  resizeOnTap = false,
+  testID,
+  ...props
+}: FotuuImageProps) {
+  const [activeContentFit, setActiveContentFit] = useState<ImageContentFit>(contentFit);
+  const resolvedContentFit = resizeOnTap ? activeContentFit : contentFit;
+
+  const flattenedStyle = StyleSheet.flatten([
+    !Device.isDevice ? { backgroundColor: SIMULATOR_BACKGROUND } : undefined,
+    style,
+  ]);
+
+  const handlePress = useCallback(() => {
+    setActiveContentFit((current) => toggleContentFit(current));
+  }, []);
+
+  const image = (
     <ExpoImage
       {...props}
-      style={StyleSheet.flatten([
-        !Device.isDevice ? { backgroundColor: SIMULATOR_BACKGROUND } : undefined,
-        style,
-      ])}
+      contentFit={resolvedContentFit}
+      style={resizeOnTap ? StyleSheet.absoluteFill : flattenedStyle}
     />
+  );
+
+  if (!resizeOnTap) {
+    return image;
+  }
+
+  return (
+    <Pressable
+      accessibilityLabel={contentFitAccessibilityLabel(resolvedContentFit)}
+      accessibilityRole="button"
+      onPress={handlePress}
+      style={flattenedStyle}
+      testID={testID}
+    >
+      {image}
+    </Pressable>
   );
 }
 
-export const Image = Object.assign(ImageComponent, ExpoImage) as typeof ExpoImage;
+export const Image = Object.assign(ImageComponent, ExpoImage) as ComponentType<FotuuImageProps> &
+  typeof ExpoImage;
 
 export type {
   ImageCacheConfig,
