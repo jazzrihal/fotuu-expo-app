@@ -1,0 +1,27 @@
+appId: com.jazzrihal.Fotuu
+env:
+  E2E_EMAIL: ${E2E_EMAIL || "alice@example.com"}
+  E2E_PASSWORD: ${E2E_PASSWORD || "fotuu-local-dev"}
+  E2E_POST_CAPTION: ${E2E_POST_CAPTION || "Golden hour from Maestro"}
+---
+- runFlow:
+    file: create-post.yaml
+    env:
+      E2E_EMAIL: ${E2E_EMAIL}
+      E2E_PASSWORD: ${E2E_PASSWORD}
+      E2E_POST_CAPTION: ${E2E_POST_CAPTION}
+- tapOn:
+    point: "16%,32%"
+- assertVisible:
+    id: "home-post-detail"
+- assertVisible:
+    id: "home-post-detail-image"
+- assertVisible:
+    id: "home-post-detail-author"
+- assertVisible:
+    id: "home-post-detail-caption"
+- assertNotVisible: "Friends"
+- assertNotVisible: "Profile"
+- back
+- assertVisible:
+    id: "home-feed"

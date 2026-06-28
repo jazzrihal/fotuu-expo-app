@@ -14,3 +14,4 @@ executionOrder:
     - search
     - requests
     - create-post
+    - view-post-detail
