@@ -607,6 +607,34 @@ export type Database = {
           username: string
         }[]
       }
+      list_friends_posts: {
+        Args: {
+          p_before_created_at?: string
+          p_before_post_id?: string
+          p_limit?: number
+        }
+        Returns: {
+          address: string
+          author_id: string
+          badges: Json
+          caption: string
+          captured_at: string
+          city: string
+          country: string
+          created_at: string
+          display_name: string
+          id: string
+          is_pinned_by_current_user: boolean
+          latitude: number
+          longitude: number
+          privacy_scope: Database["public"]["Enums"]["post_privacy_scope"]
+          region: string
+          storage_bucket_id: string
+          storage_object_path: string
+          user_reaction: Database["public"]["Enums"]["post_reaction_type"]
+          username: string
+        }[]
+      }
       list_incoming_friend_requests: {
         Args: never
         Returns: {
