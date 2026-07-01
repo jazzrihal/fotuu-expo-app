@@ -6,6 +6,7 @@ import {
 } from "react-native";
 import { Column, Host, RNHostView, Text } from "@expo/ui";
 import { Empty } from "@/components/empty";
+import { ProfileLink } from "@/components/profile-link";
 import { Image } from "@/components/image";
 import { Stack, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useAuth } from "@/context/auth";
@@ -154,12 +155,14 @@ export function PostDetailScreen({
             spacing={4}
             style={{ paddingHorizontal: 12, paddingVertical: 8 }}
           >
-            <Text
-              testID={`${testIDPrefix}-detail-author`}
-              textStyle={{ fontWeight: "600" }}
-            >
-              {post.display_name}
-            </Text>
+            <RNHostView matchContents>
+              <ProfileLink
+                userId={post.author_id}
+                testID={`${testIDPrefix}-detail-author`}
+              >
+                {post.display_name}
+              </ProfileLink>
+            </RNHostView>
             {locationLine ? (
               <Text testID={`${testIDPrefix}-detail-location`}>
                 {locationLine}

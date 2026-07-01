@@ -1,14 +1,11 @@
-import { useState } from 'react';
 import { Redirect, ThemeProvider, DarkTheme, DefaultTheme } from 'expo-router';
-import { NativeTabs } from 'expo-router/unstable-native-tabs';
+import { Stack } from 'expo-router/stack';
 import { useColorScheme } from 'react-native';
 import { useAuth } from '@/context/auth';
-import { TabBarContext } from '@/context/tab-bar';
 
 export default function AppLayout() {
   const { session, loading } = useAuth();
   const colorScheme = useColorScheme();
-  const [isTabBarHidden, setIsTabBarHidden] = useState(false);
 
   if (loading) return null;
 
@@ -16,31 +13,16 @@ export default function AppLayout() {
 
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <TabBarContext value={{ setIsTabBarHidden }}>
-        <NativeTabs hidden={isTabBarHidden}>
-          <NativeTabs.Trigger name="home">
-            <NativeTabs.Trigger.Icon
-              sf={{ default: 'house', selected: 'house.fill' }}
-              md={{ default: 'home', selected: 'home_filled' }}
-            />
-            <NativeTabs.Trigger.Label>Home</NativeTabs.Trigger.Label>
-          </NativeTabs.Trigger>
-          <NativeTabs.Trigger name="friends" disableTransparentOnScrollEdge>
-            <NativeTabs.Trigger.Icon
-              sf={{ default: 'person.2', selected: 'person.2.fill' }}
-              md="group"
-            />
-            <NativeTabs.Trigger.Label>Friends</NativeTabs.Trigger.Label>
-          </NativeTabs.Trigger>
-          <NativeTabs.Trigger name="profile">
-            <NativeTabs.Trigger.Icon
-              sf={{ default: 'person.crop.circle', selected: 'person.crop.circle.fill' }}
-              md="account_circle"
-            />
-            <NativeTabs.Trigger.Label>Profile</NativeTabs.Trigger.Label>
-          </NativeTabs.Trigger>
-        </NativeTabs>
-      </TabBarContext>
+      <Stack>
+        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen
+          name="user/[id]"
+          options={{
+            headerBackButtonDisplayMode: 'minimal',
+            headerLargeTitle: false,
+          }}
+        />
+      </Stack>
     </ThemeProvider>
   );
 }

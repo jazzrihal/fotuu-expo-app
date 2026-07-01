@@ -74,3 +74,28 @@ export async function cancelFriendRequest(
   });
   return { error: rpcErrorMessage(error) };
 }
+
+export async function removeFriend(
+  friendId: string,
+): Promise<{ error: string | null }> {
+  const { error } = await supabase.rpc('remove_friend', {
+    p_friend_id: friendId,
+  });
+  return { error: rpcErrorMessage(error) };
+}
+
+export async function getRelationshipStatus(
+  otherUserId: string,
+): Promise<{ data: string | null; error: string | null }> {
+  const userId = (await supabase.auth.getUser()).data.user?.id;
+  if (!userId) {
+    return { data: null, error: 'Not signed in' };
+  }
+
+  const { data, error } = await supabase.rpc('get_relationship_status', {
+    p_user_id: userId,
+    p_other_id: otherUserId,
+  });
+
+  return { data, error: rpcErrorMessage(error) };
+}

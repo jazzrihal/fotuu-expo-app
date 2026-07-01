@@ -37,7 +37,7 @@ export default function Profile() {
   const openPostDetail = useCallback(
     (post: ProfileFeedPostWithImage) => {
       router.push({
-        pathname: '/(app)/profile/[id]',
+        pathname: '/(app)/(tabs)/profile/[id]',
         params: {
           id: post.id,
           post: JSON.stringify(post),

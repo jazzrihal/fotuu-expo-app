@@ -7,6 +7,15 @@ export default function FriendsLayout() {
         headerLargeTitle: false,
         headerBackButtonDisplayMode: 'minimal',
       }}
-    />
+    >
+      <Stack.Screen name="index" />
+      <Stack.Screen
+        name="[id]"
+        options={{
+          title: '',
+          headerLargeTitle: false,
+        }}
+      />
+    </Stack>
   );
 }

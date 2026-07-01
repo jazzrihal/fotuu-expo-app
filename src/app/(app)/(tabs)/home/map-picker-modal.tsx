@@ -32,7 +32,6 @@ export default function MapPickerModal() {
       </View>
       <Stack.Toolbar placement="left">
         <Stack.Toolbar.Button
-          testID="home-feed-map-picker-cancel"
           accessibilityLabel="Cancel"
           onPress={() => router.back()}
         >
@@ -41,7 +40,6 @@ export default function MapPickerModal() {
       </Stack.Toolbar>
       <Stack.Toolbar placement="right">
         <Stack.Toolbar.Button
-          testID="home-feed-confirm-location"
           accessibilityLabel="Confirm"
           variant="done"
           onPress={confirmLocation}

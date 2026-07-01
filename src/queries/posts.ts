@@ -11,6 +11,7 @@ import {
   getPostViewerEngagement,
   likePost,
   listFeedPosts,
+  listFriendsPosts,
   listProfileFeedPosts,
   pinPost,
   unlikePost,
@@ -18,6 +19,7 @@ import {
   uploadPostImage,
   type CreatePostInput,
   type FeedPost,
+  type FriendsPost,
   type PostDetail,
   type ProfileFeedPost,
 } from '@/lib/posts';
@@ -26,8 +28,9 @@ import { queryKeys } from '@/queries/keys';
 
 export type FeedPostWithImage = FeedPost & { imageUrl?: string };
 export type ProfileFeedPostWithImage = ProfileFeedPost & { imageUrl?: string };
+export type FriendsPostWithImage = FriendsPost & { imageUrl?: string };
 export type PostDetailWithImage =
-  (FeedPost | PostDetail | ProfileFeedPost) & { imageUrl?: string };
+  (FeedPost | PostDetail | ProfileFeedPost | FriendsPost) & { imageUrl?: string };
 
 type FeedParams = {
   at: string;
@@ -68,6 +71,17 @@ async function fetchProfileFeedWithImages(
   }));
 }
 
+async function fetchFriendsPostsWithImages(): Promise<FriendsPostWithImage[]> {
+  const posts = assertOk(await listFriendsPosts());
+  const urls = assertOk(
+    await getPostImageUrls(posts.map((p) => p.storage_object_path)),
+  );
+  return posts.map((post) => ({
+    ...post,
+    imageUrl: urls[post.storage_object_path],
+  }));
+}
+
 async function fetchPostWithImage(postId: string): Promise<PostDetailWithImage> {
   const post = assertOk(await getPost(postId));
   const urls = assertOk(await getPostImageUrls([post.storage_object_path]));
@@ -86,11 +100,21 @@ export function useFeedQuery(params: FeedParams) {
   });
 }
 
-export function useProfileFeedQuery(userId: string | undefined) {
+export function useProfileFeedQuery(
+  userId: string | undefined,
+  options?: { enabled?: boolean },
+) {
   return useQuery({
     queryKey: queryKeys.profileFeed(userId ?? ''),
     queryFn: () => fetchProfileFeedWithImages(userId!),
-    enabled: !!userId,
+    enabled: (options?.enabled ?? true) && !!userId,
+  });
+}
+
+export function useFriendsPostsQuery() {
+  return useQuery({
+    queryKey: queryKeys.friendsPosts(),
+    queryFn: fetchFriendsPostsWithImages,
   });
 }
 
@@ -116,6 +140,7 @@ function patchPostListCaches(
 
   queryClient.setQueriesData({ queryKey: ['feed'] }, updater);
   queryClient.setQueriesData({ queryKey: ['profile-feed'] }, updater);
+  queryClient.setQueriesData({ queryKey: queryKeys.friendsPosts() }, updater);
 }
 
 export function useToggleLikeMutation(postId: string | null) {
@@ -154,6 +179,7 @@ export function useToggleLikeMutation(postId: string | null) {
       queryClient.setQueryData(queryKeys.post(postId), context.previousPost);
       queryClient.invalidateQueries({ queryKey: ['feed'] });
       queryClient.invalidateQueries({ queryKey: ['profile-feed'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.friendsPosts() });
     },
     onSettled: () => {
       if (!postId) return;
@@ -199,6 +225,7 @@ export function useTogglePinMutation(postId: string | null) {
       queryClient.setQueryData(queryKeys.post(postId), context.previousPost);
       queryClient.invalidateQueries({ queryKey: ['feed'] });
       queryClient.invalidateQueries({ queryKey: ['profile-feed'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.friendsPosts() });
     },
     onSettled: () => {
       if (!postId) return;
@@ -228,6 +255,7 @@ export function useCreatePostMutation() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['feed'] });
       queryClient.invalidateQueries({ queryKey: ['profile-feed'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.friendsPosts() });
     },
   });
 }

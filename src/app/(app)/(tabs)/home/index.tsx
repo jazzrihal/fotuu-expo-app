@@ -108,7 +108,7 @@ export default function Home() {
 
   const openLocationPicker = useCallback(() => {
     locationPicker$.initial.set(selectedLocation ?? DEFAULT_COORDINATES);
-    router.push("/(app)/home/map-picker-modal");
+    router.push("/(app)/(tabs)/home/map-picker-modal");
   }, [selectedLocation, router]);
 
   const acceptLocation = useCallback(async () => {
@@ -145,7 +145,7 @@ export default function Home() {
   const openPostDetail = useCallback(
     (post: FeedPostWithImage) => {
       router.push({
-        pathname: "/(app)/home/[id]",
+        pathname: "/(app)/(tabs)/home/[id]",
         params: {
           id: post.id,
           post: JSON.stringify(post),
@@ -245,7 +245,7 @@ export default function Home() {
         <Stack.Toolbar.Button
           accessibilityLabel="New post"
           icon="plus"
-          onPress={() => router.push("/(app)/home/new-post")}
+          onPress={() => router.push("/(app)/(tabs)/home/new-post")}
         />
       </Stack.Toolbar>
     </>

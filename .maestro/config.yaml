@@ -16,5 +16,8 @@ executionOrder:
     - list
     - search
     - requests
+    - feed
+    - swipe-unfriend
+    - open-profile-from-post
     - create-post
     - view-post-detail

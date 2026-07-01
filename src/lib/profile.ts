@@ -9,12 +9,12 @@ function rpcErrorMessage(error: { message: string } | null): string | null {
 }
 
 export async function getUserProfile(userId: string): Promise<{
-  data: Pick<UserProfile, 'display_name'> | null;
+  data: Pick<UserProfile, 'display_name' | 'username'> | null;
   error: string | null;
 }> {
   const { data, error } = await supabase
     .from('user_profiles')
-    .select('display_name')
+    .select('display_name, username')
     .eq('id', userId)
     .maybeSingle();
 

@@ -756,6 +756,10 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      remove_friend: {
+        Args: { p_friend_id: string }
+        Returns: undefined
+      }
       search_profiles: {
         Args: { p_limit?: number; p_query: string }
         Returns: {

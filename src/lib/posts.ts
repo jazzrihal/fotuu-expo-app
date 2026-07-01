@@ -7,13 +7,16 @@ export type FeedPost =
 export type ProfileFeedPost =
   Database['public']['Functions']['list_profile_feed_posts']['Returns'][number];
 
+export type FriendsPost =
+  Database['public']['Functions']['list_friends_posts']['Returns'][number];
+
 export type PostDetail =
   Database['public']['Functions']['get_post']['Returns'][number];
 
 export type PostPrivacyScope = Database['public']['Enums']['post_privacy_scope'];
 
 export type PostViewerEngagementSource = Pick<
-  FeedPost | PostDetail | ProfileFeedPost,
+  FeedPost | PostDetail | ProfileFeedPost | FriendsPost,
   'user_reaction' | 'is_pinned_by_current_user'
 >;
 
@@ -149,6 +152,20 @@ export async function listFeedPosts(params: {
     p_longitude: params.longitude,
     p_limit: params.limit ?? 30,
     p_max_distance_meters: params.maxDistanceMeters,
+  });
+
+  return { data, error: rpcErrorMessage(error) };
+}
+
+export async function listFriendsPosts(params?: {
+  limit?: number;
+  beforeCreatedAt?: string;
+  beforePostId?: string;
+}): Promise<{ data: FriendsPost[] | null; error: string | null }> {
+  const { data, error } = await supabase.rpc('list_friends_posts', {
+    p_limit: params?.limit ?? 30,
+    p_before_created_at: params?.beforeCreatedAt,
+    p_before_post_id: params?.beforePostId,
   });
 
   return { data, error: rpcErrorMessage(error) };

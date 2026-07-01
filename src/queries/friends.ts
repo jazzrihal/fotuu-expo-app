@@ -1,9 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   cancelFriendRequest,
+  getRelationshipStatus,
   listFriends,
   listIncomingFriendRequests,
   listOutgoingFriendRequests,
+  removeFriend,
   respondToFriendRequest,
   searchProfiles,
   sendFriendRequest,
@@ -15,6 +17,7 @@ function invalidateFriendsQueries(queryClient: ReturnType<typeof useQueryClient>
   queryClient.invalidateQueries({ queryKey: queryKeys.friends() });
   queryClient.invalidateQueries({ queryKey: ['friend-requests'] });
   queryClient.invalidateQueries({ queryKey: ['profile-search'] });
+  queryClient.invalidateQueries({ queryKey: queryKeys.friendsPosts() });
 }
 
 export function useFriendsQuery() {
@@ -80,5 +83,31 @@ export function useSendFriendRequestMutation() {
         if (result.error) throw new Error(result.error);
       }),
     onSuccess: () => invalidateFriendsQueries(queryClient),
+  });
+}
+
+export function useRemoveFriendMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (friendId: string) =>
+      removeFriend(friendId).then((result) => {
+        if (result.error) throw new Error(result.error);
+      }),
+    onSuccess: () => invalidateFriendsQueries(queryClient),
+  });
+}
+
+export function useRelationshipStatusQuery(
+  otherUserId: string | undefined,
+  options?: { enabled?: boolean },
+) {
+  return useQuery({
+    queryKey: ['relationship-status', otherUserId ?? ''],
+    queryFn: async () => {
+      const { data, error } = await getRelationshipStatus(otherUserId!);
+      if (error) throw new Error(error);
+      return data ?? 'none';
+    },
+    enabled: (options?.enabled ?? true) && !!otherUserId,
   });
 }
