@@ -15,6 +15,7 @@ import { HomeFeedHeader } from "@/components/home-feed-header";
 import { type MapCoordinates } from "@/components/map-picker";
 import { locationPicker$ } from "@/lib/location-picker-store";
 import { resolveLocationLabel } from "@/lib/location-label";
+import { openPostDetail } from "@/lib/navigation";
 import { useFeedQuery, type FeedPostWithImage } from "@/queries/posts";
 
 const DEFAULT_COORDINATES: MapCoordinates = {
@@ -142,15 +143,9 @@ export default function Home() {
     }
   }, [showLocationEmpty]);
 
-  const openPostDetail = useCallback(
+  const handleOpenPostDetail = useCallback(
     (post: FeedPostWithImage) => {
-      router.push({
-        pathname: "/(app)/(tabs)/home/[id]",
-        params: {
-          id: post.id,
-          post: JSON.stringify(post),
-        },
-      });
+      openPostDetail(router, post, { testIDPrefix: "home-post" });
     },
     [router],
   );
@@ -193,7 +188,7 @@ export default function Home() {
         testID="home-feed-grid"
         testIDPrefix="home-feed"
         posts={posts}
-        onPostPress={openPostDetail}
+        onPostPress={handleOpenPostDetail}
         refreshing={feedQuery.isRefetching && !feedQuery.isPending}
         onRefresh={() => {
           void feedQuery.refetch();

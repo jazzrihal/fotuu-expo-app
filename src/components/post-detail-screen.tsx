@@ -1,4 +1,4 @@
-import { use, useCallback, useMemo } from "react";
+import { useCallback, useMemo } from "react";
 import {
   ActivityIndicator,
   ScrollView,
@@ -6,12 +6,14 @@ import {
 } from "react-native";
 import { Column, Host, RNHostView, Text } from "@expo/ui";
 import { Empty } from "@/components/empty";
-import { ProfileLink } from "@/components/profile-link";
 import { Image } from "@/components/image";
-import { Stack, useFocusEffect, useLocalSearchParams } from "expo-router";
+import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { useAuth } from "@/context/auth";
-import { TabBarContext } from "@/context/tab-bar";
 import { buildLocationLine, formatCapturedAt } from "@/lib/post-display";
+import {
+  openUserProfile,
+  parsePostDetailTestIDPrefix,
+} from "@/lib/navigation";
 import {
   getPostViewerEngagement,
   usePostQuery,
@@ -34,20 +36,17 @@ function parsePostParam(
   }
 }
 
-type PostDetailScreenProps = {
-  testIDPrefix?: string;
-};
-
-export function PostDetailScreen({
-  testIDPrefix = "home-post",
-}: PostDetailScreenProps) {
+export function PostDetailScreen() {
   const { width, height } = useWindowDimensions();
+  const router = useRouter();
   const { session } = useAuth();
-  const { setIsTabBarHidden } = use(TabBarContext);
-  const { id, post: postParam } = useLocalSearchParams<{
-    id: string;
-    post?: string;
-  }>();
+  const { id, post: postParam, testIDPrefix: testIDPrefixParam } =
+    useLocalSearchParams<{
+      id: string;
+      post?: string;
+      testIDPrefix?: string;
+    }>();
+  const testIDPrefix = parsePostDetailTestIDPrefix(testIDPrefixParam);
 
   const parsedPost = useMemo(() => parsePostParam(postParam), [postParam]);
 
@@ -78,13 +77,6 @@ export function PostDetailScreen({
   const actionError =
     likeMutation.error?.message ?? pinMutation.error?.message ?? null;
 
-  useFocusEffect(
-    useCallback(() => {
-      setIsTabBarHidden(true);
-      return () => setIsTabBarHidden(false);
-    }, [setIsTabBarHidden]),
-  );
-
   const handleToggleLike = useCallback(() => {
     if (!postId || actionPending) {
       return;
@@ -98,6 +90,18 @@ export function PostDetailScreen({
     }
     pinMutation.mutate(!postEngagement.isPinned);
   }, [actionPending, pinMutation, postEngagement.isPinned, postId]);
+
+  const openAuthorProfile = useCallback(() => {
+    if (!post?.author_id) {
+      return;
+    }
+
+    openUserProfile(router, session?.user.id, {
+      id: post.author_id,
+      displayName: post.display_name,
+      username: post.username,
+    });
+  }, [post, router, session?.user.id]);
 
   if (postQuery.isPending && !post) {
     return (
@@ -155,14 +159,13 @@ export function PostDetailScreen({
             spacing={4}
             style={{ paddingHorizontal: 12, paddingVertical: 8 }}
           >
-            <RNHostView matchContents>
-              <ProfileLink
-                userId={post.author_id}
-                testID={`${testIDPrefix}-detail-author`}
-              >
-                {post.display_name}
-              </ProfileLink>
-            </RNHostView>
+            <Text
+              testID={`${testIDPrefix}-detail-author`}
+              textStyle={{ fontWeight: "600" }}
+              onPress={openAuthorProfile}
+            >
+              {post.display_name}
+            </Text>
             {locationLine ? (
               <Text testID={`${testIDPrefix}-detail-location`}>
                 {locationLine}

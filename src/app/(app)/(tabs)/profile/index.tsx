@@ -11,6 +11,7 @@ import { PostFeedGrid } from '@/components/post-feed-grid';
 import { Stack, useRouter } from 'expo-router';
 import { useAuth } from '@/context/auth';
 import { profileDisplayName } from '@/lib/profile-display';
+import { openPostDetail } from '@/lib/navigation';
 import {
   useProfileFeedQuery,
   type ProfileFeedPostWithImage,
@@ -34,15 +35,9 @@ export default function Profile() {
   const showFeedEmpty =
     !showFeedLoading && !feedQuery.error && posts.length === 0;
 
-  const openPostDetail = useCallback(
+  const handleOpenPostDetail = useCallback(
     (post: ProfileFeedPostWithImage) => {
-      router.push({
-        pathname: '/(app)/(tabs)/profile/[id]',
-        params: {
-          id: post.id,
-          post: JSON.stringify(post),
-        },
-      });
+      openPostDetail(router, post, { testIDPrefix: 'profile-post' });
     },
     [router],
   );
@@ -96,7 +91,7 @@ export default function Profile() {
         testID="profile-feed-grid"
         testIDPrefix="profile-feed"
         posts={posts}
-        onPostPress={openPostDetail}
+        onPostPress={handleOpenPostDetail}
         contentInsetAdjustmentBehavior="automatic"
         refreshing={feedQuery.isRefetching && !feedQuery.isPending}
         onRefresh={() => {

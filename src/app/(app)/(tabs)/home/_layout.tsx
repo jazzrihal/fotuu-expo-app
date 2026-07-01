@@ -16,14 +16,6 @@ export default function HomeLayout() {
         }}
       />
       <Stack.Screen
-        name="[id]"
-        options={{
-          title: "",
-          headerShown: true,
-          headerLargeTitle: false,
-        }}
-      />
-      <Stack.Screen
         name="map-picker-modal"
         options={{
           title: "Pick Location",

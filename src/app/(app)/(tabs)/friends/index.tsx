@@ -2,12 +2,11 @@ import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { SegmentedControl } from '@expo/ui/community/segmented-control';
 import { Stack } from 'expo-router';
-import { Empty } from '@/components/empty';
 import { FriendsFeedTab } from '@/components/friends/friends-feed-tab';
 import { FriendsListTab } from '@/components/friends/friends-list-tab';
 
-const SEGMENTS = ['Chats', 'Feed', 'Friends'] as const;
-const DEFAULT_SEGMENT_INDEX = 2;
+const SEGMENTS = ['Feed', 'Friends'] as const;
+const DEFAULT_SEGMENT_INDEX = 1;
 
 export default function FriendsScreen() {
   const [segmentIndex, setSegmentIndex] = useState(DEFAULT_SEGMENT_INDEX);
@@ -20,6 +19,7 @@ export default function FriendsScreen() {
         <View style={styles.segmentRow}>
           <SegmentedControl
             testID="friends-segments"
+            style={styles.segmentedControl}
             values={[...SEGMENTS]}
             selectedIndex={segmentIndex}
             onChange={(event) => {
@@ -28,18 +28,18 @@ export default function FriendsScreen() {
             }}
           />
         </View>
-        {segmentIndex === 0 ? (
-          <Empty testID="friends-chats-empty" title="Coming soon" />
-        ) : segmentIndex === 1 ? (
-          <FriendsFeedTab />
-        ) : (
-          <FriendsListTab
-            isSearchOpen={isSearchOpen}
-            onSearchOpenChange={setIsSearchOpen}
-          />
-        )}
+        <View style={styles.content}>
+          {segmentIndex === 0 ? (
+            <FriendsFeedTab />
+          ) : (
+            <FriendsListTab
+              isSearchOpen={isSearchOpen}
+              onSearchOpenChange={setIsSearchOpen}
+            />
+          )}
+        </View>
       </View>
-      {segmentIndex === 2 ? (
+      {segmentIndex === 1 ? (
         <Stack.Toolbar placement="right">
           <Stack.Toolbar.Button
             accessibilityLabel="Search"
@@ -58,7 +58,13 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   segmentRow: {
-    paddingHorizontal: 12,
+    paddingHorizontal: 16,
     paddingVertical: 8,
+  },
+  segmentedControl: {
+    width: '100%',
+  },
+  content: {
+    flex: 1,
   },
 });

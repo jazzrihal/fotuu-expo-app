@@ -22,6 +22,14 @@ export default function AppLayout() {
             headerLargeTitle: false,
           }}
         />
+        <Stack.Screen
+          name="post/[id]"
+          options={{
+            title: '',
+            headerBackButtonDisplayMode: 'minimal',
+            headerLargeTitle: false,
+          }}
+        />
       </Stack>
     </ThemeProvider>
   );

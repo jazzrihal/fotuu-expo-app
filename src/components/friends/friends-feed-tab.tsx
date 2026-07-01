@@ -3,6 +3,7 @@ import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { Host, Text } from '@expo/ui';
 import { useRouter } from 'expo-router';
 import { Empty } from '@/components/empty';
+import { openPostDetail } from '@/lib/navigation';
 import { PostFeedGrid } from '@/components/post-feed-grid';
 import { queryKeys } from '@/queries/keys';
 import {
@@ -22,15 +23,9 @@ export function FriendsFeedTab() {
   const showError = !!feedQuery.error && !showLoading;
   const showEmpty = !showLoading && !feedQuery.error && posts.length === 0;
 
-  const openPostDetail = useCallback(
+  const handleOpenPostDetail = useCallback(
     (post: FriendsPostWithImage) => {
-      router.push({
-        pathname: '/(app)/(tabs)/friends/[id]',
-        params: {
-          id: post.id,
-          post: JSON.stringify(post),
-        },
-      });
+      openPostDetail(router, post, { testIDPrefix: 'friends-post' });
     },
     [router],
   );
@@ -65,7 +60,7 @@ export function FriendsFeedTab() {
         testID="friends-feed-grid"
         testIDPrefix="friends-feed"
         posts={posts}
-        onPostPress={openPostDetail}
+        onPostPress={handleOpenPostDetail}
         contentInsetAdjustmentBehavior="automatic"
         refreshing={feedQuery.isRefetching && !feedQuery.isPending}
         onRefresh={() => {

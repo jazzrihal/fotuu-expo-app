@@ -1,6 +1,9 @@
 import type { ReactNode } from 'react';
-import { ListItem, RNHostView } from '@expo/ui';
-import { ProfileLink } from '@/components/profile-link';
+import { useCallback } from 'react';
+import { ListItem, Text } from '@expo/ui';
+import { useRouter } from 'expo-router';
+import { useAuth } from '@/context/auth';
+import { openUserProfile } from '@/lib/navigation';
 import { relationshipLabel, type RelationshipKind } from '@/lib/relationship-status';
 
 type ProfileListItemProps = {
@@ -24,19 +27,33 @@ export function ProfileListItem({
   testID,
   trailing,
 }: ProfileListItemProps) {
+  const router = useRouter();
+  const { session } = useAuth();
+
   const statusLabel = relationship ? relationshipLabel(relationship) : '';
   const meta = subtitle ?? (trailing ? undefined : statusLabel || undefined);
   const supportingText = meta ? `@${username} · ${meta}` : `@${username}`;
 
+  const openProfile = useCallback(() => {
+    if (!profileId) {
+      return;
+    }
+
+    openUserProfile(router, session?.user.id, {
+      id: profileId,
+      displayName,
+      username,
+    });
+  }, [profileId, router, session?.user.id, displayName, username]);
+
   const title = profileId ? (
-    <RNHostView matchContents>
-      <ProfileLink
-        userId={profileId}
-        testID={testID ? `${testID}-name` : undefined}
-      >
-        {displayName}
-      </ProfileLink>
-    </RNHostView>
+    <Text
+      textStyle={{ fontWeight: '600' }}
+      testID={testID ? `${testID}-name` : undefined}
+      onPress={openProfile}
+    >
+      {displayName}
+    </Text>
   ) : (
     displayName
   );

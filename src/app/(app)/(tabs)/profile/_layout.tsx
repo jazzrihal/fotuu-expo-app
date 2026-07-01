@@ -9,13 +9,6 @@ export default function ProfileLayout() {
       }}
     >
       <Stack.Screen name="index" />
-      <Stack.Screen
-        name="[id]"
-        options={{
-          title: '',
-          headerLargeTitle: false,
-        }}
-      />
     </Stack>
   );
 }

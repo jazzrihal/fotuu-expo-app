@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  StyleSheet,
   type NativeSyntheticEvent,
   Text as RNText,
   type TextInputFocusEventData,
@@ -163,7 +164,11 @@ export function FriendsListTab({
     searchQuery.error?.message ?? sendMutation.error?.message ?? null;
 
   return (
-    <Host testID="friends-list" style={{ flex: 1 }} useViewportSizeMeasurement>
+    <Host
+      testID="friends-list"
+      style={styles.listHost}
+      useViewportSizeMeasurement
+    >
       {isSearchOpen ? (
         isSearchActive ? (
           searchQuery.isPending ? (
@@ -254,41 +259,27 @@ export function FriendsListTab({
                         variant="filled"
                         label={
                           busyRequestId === request.request_id
-                            ? undefined
+                            ? 'Accepting…'
                             : 'Accept'
                         }
-                        disabled={
-                          busyRequestId !== null &&
-                          busyRequestId !== request.request_id
-                        }
+                        disabled={busyRequestId !== null}
                         onPress={() =>
                           handleRespond(request.request_id, true)
                         }
-                      >
-                        {busyRequestId === request.request_id ? (
-                          <ActivityIndicator size="small" />
-                        ) : null}
-                      </Button>
+                      />
                       <Button
                         testID={`decline-request-${request.username}`}
                         variant="outlined"
                         label={
                           busyRequestId === request.request_id
-                            ? undefined
+                            ? 'Declining…'
                             : 'Decline'
                         }
-                        disabled={
-                          busyRequestId !== null &&
-                          busyRequestId !== request.request_id
-                        }
+                        disabled={busyRequestId !== null}
                         onPress={() =>
                           handleRespond(request.request_id, false)
                         }
-                      >
-                        {busyRequestId === request.request_id ? (
-                          <ActivityIndicator size="small" />
-                        ) : null}
-                      </Button>
+                      />
                     </Row>
                   }
                 />
@@ -312,19 +303,12 @@ export function FriendsListTab({
                       variant="outlined"
                       label={
                         busyRequestId === request.request_id
-                          ? undefined
+                          ? 'Canceling…'
                           : 'Cancel'
                       }
-                      disabled={
-                        busyRequestId !== null &&
-                        busyRequestId !== request.request_id
-                      }
+                      disabled={busyRequestId !== null}
                       onPress={() => handleCancel(request.request_id)}
-                    >
-                      {busyRequestId === request.request_id ? (
-                        <ActivityIndicator size="small" />
-                      ) : null}
-                    </Button>
+                    />
                   }
                 />
               ))}
@@ -384,16 +368,18 @@ function searchTrailingAction({
         <Button
           testID={`send-request-${profile.username}`}
           variant="filled"
-          label={busyProfileId === profile.id ? undefined : 'Add'}
-          disabled={busyProfileId !== null && busyProfileId !== profile.id}
+          label={busyProfileId === profile.id ? 'Adding…' : 'Add'}
+          disabled={busyProfileId !== null}
           onPress={() => onSendRequest(profile.id)}
-        >
-          {busyProfileId === profile.id ? (
-            <ActivityIndicator size="small" />
-          ) : null}
-        </Button>
+        />
       );
     default:
       return null;
   }
 }
+
+const styles = StyleSheet.create({
+  listHost: {
+    flex: 1,
+  },
+});
