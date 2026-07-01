@@ -1,18 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
-  Pressable,
   StyleSheet,
-  useColorScheme,
-  useWindowDimensions,
   View,
 } from "react-native";
-import { FlashList } from "@shopify/flash-list";
 import { Button, Host, Row, Text } from "@expo/ui";
 import { Empty } from "@/components/empty";
 import { EmptyActionsSheet } from "@/components/empty-actions-sheet";
+import { PostFeedGrid } from "@/components/post-feed-grid";
 import { useObserve } from "@legendapp/state/react";
-import { Image } from "@/components/image";
 import * as Location from "expo-location";
 import { Stack, useRouter } from "expo-router";
 import { HomeFeedHeader } from "@/components/home-feed-header";
@@ -26,25 +22,8 @@ const DEFAULT_COORDINATES: MapCoordinates = {
   longitude: -122.4194,
 };
 
-const GRID_COLUMNS = 3;
-const GRID_GAP = 1;
-
 export default function Home() {
   const router = useRouter();
-  const colorScheme = useColorScheme();
-  const gridSeparatorColor = colorScheme === "dark" ? "#000" : "#fff";
-  const { width: screenWidth } = useWindowDimensions();
-  const { tileSize, lastColumnWidth } = useMemo(() => {
-    const baseTileSize = Math.floor(
-      (screenWidth - GRID_GAP * (GRID_COLUMNS - 1)) / GRID_COLUMNS,
-    );
-    const gridWidth =
-      baseTileSize * GRID_COLUMNS + GRID_GAP * (GRID_COLUMNS - 1);
-    return {
-      tileSize: baseTileSize,
-      lastColumnWidth: baseTileSize + (screenWidth - gridWidth),
-    };
-  }, [screenWidth]);
 
   const [selectedDate, setSelectedDate] = useState(() => new Date());
   const [selectedLocation, setSelectedLocation] =
@@ -176,34 +155,6 @@ export default function Home() {
     [router],
   );
 
-  const renderGridItem = useCallback(
-    ({ item, index }: { item: FeedPostWithImage; index: number }) => {
-      const isLastColumn = index % GRID_COLUMNS === GRID_COLUMNS - 1;
-      const itemWidth = isLastColumn ? lastColumnWidth : tileSize;
-
-      return (
-        <Pressable
-          testID={`home-feed-post-${item.id}`}
-          onPress={() => openPostDetail(item)}
-          style={{
-            width: itemWidth,
-            height: tileSize,
-            marginRight: isLastColumn ? 0 : GRID_GAP,
-            marginBottom: GRID_GAP,
-          }}
-        >
-          <Image
-            recyclingKey={item.id}
-            source={item.imageUrl ? { uri: item.imageUrl } : undefined}
-            style={{ width: itemWidth, height: tileSize }}
-            contentFit="cover"
-          />
-        </Pressable>
-      );
-    },
-    [lastColumnWidth, openPostDetail, tileSize],
-  );
-
   const feedContent = (() => {
     if (showFeedLoading) {
       return <ActivityIndicator style={styles.loader} />;
@@ -238,16 +189,12 @@ export default function Home() {
     }
 
     return (
-      <FlashList
+      <PostFeedGrid
         testID="home-feed-grid"
-        data={posts}
-        numColumns={GRID_COLUMNS}
-        keyExtractor={(item) => item.id}
-        renderItem={renderGridItem}
-        style={{ backgroundColor: gridSeparatorColor }}
-        contentContainerStyle={styles.gridContent}
-        contentInsetAdjustmentBehavior="never"
-        refreshing={feedQuery.isRefetching}
+        testIDPrefix="home-feed"
+        posts={posts}
+        onPostPress={openPostDetail}
+        refreshing={feedQuery.isRefetching && !feedQuery.isPending}
         onRefresh={() => {
           void feedQuery.refetch();
         }}
@@ -318,9 +265,5 @@ const styles = StyleSheet.create({
   },
   loader: {
     marginTop: 32,
-  },
-  gridContent: {
-    paddingTop: 0,
-    paddingHorizontal: 0,
   },
 });

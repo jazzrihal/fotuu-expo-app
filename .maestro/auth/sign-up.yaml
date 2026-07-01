@@ -48,5 +48,4 @@ env:
       visible: "Friends"
     commands:
       - tapOn: "Profile"
-      - assertVisible:
-          id: "home-user-email"
+      - assertVisible: "Sign out"

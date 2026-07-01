@@ -7,6 +7,15 @@ export default function ProfileLayout() {
         headerLargeTitle: true,
         headerBackButtonDisplayMode: 'minimal',
       }}
-    />
+    >
+      <Stack.Screen name="index" />
+      <Stack.Screen
+        name="[id]"
+        options={{
+          title: '',
+          headerLargeTitle: false,
+        }}
+      />
+    </Stack>
   );
 }

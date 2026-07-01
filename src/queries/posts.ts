@@ -11,6 +11,7 @@ import {
   getPostViewerEngagement,
   likePost,
   listFeedPosts,
+  listProfileFeedPosts,
   pinPost,
   unlikePost,
   unpinPost,
@@ -18,12 +19,15 @@ import {
   type CreatePostInput,
   type FeedPost,
   type PostDetail,
+  type ProfileFeedPost,
 } from '@/lib/posts';
 import { assertOk } from '@/lib/result';
 import { queryKeys } from '@/queries/keys';
 
 export type FeedPostWithImage = FeedPost & { imageUrl?: string };
-export type PostDetailWithImage = (FeedPost | PostDetail) & { imageUrl?: string };
+export type ProfileFeedPostWithImage = ProfileFeedPost & { imageUrl?: string };
+export type PostDetailWithImage =
+  (FeedPost | PostDetail | ProfileFeedPost) & { imageUrl?: string };
 
 type FeedParams = {
   at: string;
@@ -49,6 +53,21 @@ async function fetchFeedWithImages(params: FeedParams): Promise<FeedPostWithImag
   }));
 }
 
+async function fetchProfileFeedWithImages(
+  userId: string,
+): Promise<ProfileFeedPostWithImage[]> {
+  const posts = assertOk(
+    await listProfileFeedPosts({ profileUserId: userId }),
+  );
+  const urls = assertOk(
+    await getPostImageUrls(posts.map((p) => p.storage_object_path)),
+  );
+  return posts.map((post) => ({
+    ...post,
+    imageUrl: urls[post.storage_object_path],
+  }));
+}
+
 async function fetchPostWithImage(postId: string): Promise<PostDetailWithImage> {
   const post = assertOk(await getPost(postId));
   const urls = assertOk(await getPostImageUrls([post.storage_object_path]));
@@ -67,6 +86,14 @@ export function useFeedQuery(params: FeedParams) {
   });
 }
 
+export function useProfileFeedQuery(userId: string | undefined) {
+  return useQuery({
+    queryKey: queryKeys.profileFeed(userId ?? ''),
+    queryFn: () => fetchProfileFeedWithImages(userId!),
+    enabled: !!userId,
+  });
+}
+
 export function usePostQuery(
   postId: string | null,
   options?: Pick<UseQueryOptions<PostDetailWithImage>, 'placeholderData' | 'enabled'>,
@@ -79,16 +106,16 @@ export function usePostQuery(
   });
 }
 
-function patchFeedCaches(
+function patchPostListCaches(
   queryClient: ReturnType<typeof useQueryClient>,
   postId: string,
   patch: Partial<Pick<FeedPost, 'user_reaction' | 'is_pinned_by_current_user'>>,
 ) {
-  queryClient.setQueriesData<FeedPostWithImage[]>(
-    { queryKey: ['feed'] },
-    (old) =>
-      old?.map((post) => (post.id === postId ? { ...post, ...patch } : post)),
-  );
+  const updater = (old: { id: string }[] | undefined) =>
+    old?.map((post) => (post.id === postId ? { ...post, ...patch } : post));
+
+  queryClient.setQueriesData({ queryKey: ['feed'] }, updater);
+  queryClient.setQueriesData({ queryKey: ['profile-feed'] }, updater);
 }
 
 export function useToggleLikeMutation(postId: string | null) {
@@ -116,7 +143,7 @@ export function useToggleLikeMutation(postId: string | null) {
         };
       });
 
-      patchFeedCaches(queryClient, postId, {
+      patchPostListCaches(queryClient, postId, {
         user_reaction: (nextLiked ? 'like' : null) as unknown as FeedPost['user_reaction'],
       });
 
@@ -126,6 +153,7 @@ export function useToggleLikeMutation(postId: string | null) {
       if (!postId || !context?.previousPost) return;
       queryClient.setQueryData(queryKeys.post(postId), context.previousPost);
       queryClient.invalidateQueries({ queryKey: ['feed'] });
+      queryClient.invalidateQueries({ queryKey: ['profile-feed'] });
     },
     onSettled: () => {
       if (!postId) return;
@@ -160,7 +188,7 @@ export function useTogglePinMutation(postId: string | null) {
           : old,
       );
 
-      patchFeedCaches(queryClient, postId, {
+      patchPostListCaches(queryClient, postId, {
         is_pinned_by_current_user: nextPinned,
       });
 
@@ -170,6 +198,7 @@ export function useTogglePinMutation(postId: string | null) {
       if (!postId || !context?.previousPost) return;
       queryClient.setQueryData(queryKeys.post(postId), context.previousPost);
       queryClient.invalidateQueries({ queryKey: ['feed'] });
+      queryClient.invalidateQueries({ queryKey: ['profile-feed'] });
     },
     onSettled: () => {
       if (!postId) return;
@@ -198,6 +227,7 @@ export function useCreatePostMutation() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['feed'] });
+      queryClient.invalidateQueries({ queryKey: ['profile-feed'] });
     },
   });
 }

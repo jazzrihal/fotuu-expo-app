@@ -22,5 +22,4 @@ env:
     commands:
       - tapOn: "Not Now"
 - tapOn: "Profile"
-- assertVisible:
-    id: "home-user-email"
+- assertVisible: "Sign out"

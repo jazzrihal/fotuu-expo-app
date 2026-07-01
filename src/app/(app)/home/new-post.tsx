@@ -27,18 +27,11 @@ import { useAuth } from "@/context/auth";
 import { resolvePostLocationParts } from "@/lib/location-label";
 import { buildLocationLine, formatCapturedAt } from "@/lib/post-display";
 import { type PostPrivacyScope } from "@/lib/posts";
+import { profileDisplayName } from "@/lib/profile-display";
 import { useCreatePostMutation } from "@/queries/posts";
 import { useUserProfileQuery } from "@/queries/profile";
 
 const CAPTION_MAX_LENGTH = 500;
-
-function authorFallback(email: string | undefined): string {
-  if (!email) {
-    return "";
-  }
-
-  return email.split("@")[0] ?? "";
-}
 
 export default function NewPostScreen() {
   const router = useRouter();
@@ -70,9 +63,10 @@ export default function NewPostScreen() {
 
   const createPostMutation = useCreatePostMutation();
 
-  const displayName =
-    profileQuery.data?.display_name ??
-    authorFallback(session?.user.email);
+  const displayName = profileDisplayName(
+    profileQuery.data,
+    session?.user.email,
+  );
 
   useEffect(() => {
     if (!imageUri) {

@@ -4,13 +4,16 @@ import type { Database } from '@/lib/database.types';
 export type FeedPost =
   Database['public']['Functions']['list_feed_posts']['Returns'][number];
 
+export type ProfileFeedPost =
+  Database['public']['Functions']['list_profile_feed_posts']['Returns'][number];
+
 export type PostDetail =
   Database['public']['Functions']['get_post']['Returns'][number];
 
 export type PostPrivacyScope = Database['public']['Enums']['post_privacy_scope'];
 
 export type PostViewerEngagementSource = Pick<
-  FeedPost | PostDetail,
+  FeedPost | PostDetail | ProfileFeedPost,
   'user_reaction' | 'is_pinned_by_current_user'
 >;
 
@@ -117,6 +120,18 @@ export async function createPost(
     .insert(insert)
     .select('id')
     .single();
+
+  return { data, error: rpcErrorMessage(error) };
+}
+
+export async function listProfileFeedPosts(params: {
+  profileUserId: string;
+  limit?: number;
+}): Promise<{ data: ProfileFeedPost[] | null; error: string | null }> {
+  const { data, error } = await supabase.rpc('list_profile_feed_posts', {
+    p_profile_user_id: params.profileUserId,
+    p_limit: params.limit ?? 30,
+  });
 
   return { data, error: rpcErrorMessage(error) };
 }

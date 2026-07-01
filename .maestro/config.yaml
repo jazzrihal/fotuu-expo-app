@@ -3,6 +3,7 @@ flows:
   - "auth/*"
   - "friends/*"
   - "posts/*"
+  - "profile/*"
 executionOrder:
   continueOnFailure: false
   flowsOrder:
@@ -10,6 +11,8 @@ executionOrder:
     - sign-in-validation
     - sign-out
     - sign-up
+    - view-profile
+    - view-profile-post-detail
     - list
     - search
     - requests
