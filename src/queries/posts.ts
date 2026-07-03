@@ -23,6 +23,7 @@ import {
   type PostDetail,
   type ProfileFeedPost,
 } from '@/lib/posts';
+import type { PostFeedSource } from '@/lib/navigation';
 import { assertOk } from '@/lib/result';
 import { queryKeys } from '@/queries/keys';
 
@@ -91,8 +92,12 @@ async function fetchPostWithImage(postId: string): Promise<PostDetailWithImage> 
   };
 }
 
-export function useFeedQuery(params: FeedParams) {
-  const enabled = hasLocation(params);
+export function useFeedQuery(
+  params: FeedParams,
+  options?: { enabled?: boolean },
+) {
+  const locationEnabled = hasLocation(params);
+  const enabled = (options?.enabled ?? true) && locationEnabled;
   return useQuery({
     queryKey: queryKeys.feed(params),
     queryFn: () => fetchFeedWithImages(params),
@@ -128,6 +133,51 @@ export function usePostQuery(
     enabled: (options?.enabled ?? true) && !!postId,
     placeholderData: options?.placeholderData,
   });
+}
+
+export function usePostFeedPosts(feedSource: PostFeedSource | null) {
+  const homeEnabled = feedSource?.type === 'home';
+  const profileEnabled =
+    feedSource?.type === 'profile' || feedSource?.type === 'user';
+  const profileUserId =
+    feedSource?.type === 'profile' || feedSource?.type === 'user'
+      ? feedSource.userId
+      : undefined;
+
+  const homeQuery = useFeedQuery(
+    {
+      at: feedSource?.type === 'home' ? feedSource.at : '',
+      latitude: feedSource?.type === 'home' ? feedSource.latitude : NaN,
+      longitude: feedSource?.type === 'home' ? feedSource.longitude : NaN,
+    },
+    { enabled: homeEnabled },
+  );
+
+  const profileQuery = useProfileFeedQuery(profileUserId, {
+    enabled: profileEnabled,
+  });
+
+  if (homeEnabled) {
+    return {
+      posts: homeQuery.data ?? [],
+      isPending: homeQuery.isPending,
+      error: homeQuery.error,
+      refetch: homeQuery.refetch,
+      isRefetching: homeQuery.isRefetching,
+    };
+  }
+
+  if (profileEnabled) {
+    return {
+      posts: profileQuery.data ?? [],
+      isPending: profileQuery.isPending,
+      error: profileQuery.error,
+      refetch: profileQuery.refetch,
+      isRefetching: profileQuery.isRefetching,
+    };
+  }
+
+  return null;
 }
 
 function patchPostListCaches(

@@ -1,0 +1,44 @@
+appId: com.jazzrihal.Fotuu
+env:
+  E2E_EMAIL: ${E2E_EMAIL || "alice@example.com"}
+  E2E_PASSWORD: ${E2E_PASSWORD || "fotuu-local-dev"}
+---
+- runFlow:
+    file: ../auth/sign-in.yaml
+    env:
+      E2E_EMAIL: ${E2E_EMAIL}
+      E2E_PASSWORD: ${E2E_PASSWORD}
+- tapOn: "Friends"
+- tapOn: "Feed"
+- runFlow:
+    when:
+      visible:
+        id: "friends-feed-pager"
+    commands:
+      - assertVisible:
+          id: "friends-post-detail"
+      - tapOn:
+          id: "friends-post-detail-author"
+      - assertVisible:
+          id: "user-profile"
+      - runFlow:
+          when:
+            visible:
+              id: "user-profile-feed-grid"
+          commands:
+            - tapOn:
+                point: "16%,32%"
+            - assertVisible:
+                id: "user-post-feed-pager"
+            - assertVisible:
+                id: "user-post-detail"
+            - swipe:
+                direction: UP
+                from:
+                  id: "user-post-feed-pager"
+            - back
+            - assertVisible:
+                id: "user-profile"
+      - back
+      - assertVisible:
+          id: "friends-feed"

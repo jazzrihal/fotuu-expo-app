@@ -20,10 +20,16 @@ env:
       - tapOn:
           point: "16%,32%"
       - assertVisible:
+          id: "profile-post-feed-pager"
+      - assertVisible:
           id: "profile-post-detail"
       - assertVisible:
           id: "profile-post-detail-caption"
       - assertVisible: ${E2E_POST_CAPTION}
+      - swipe:
+          direction: UP
+          from:
+            id: "profile-post-feed-pager"
       - assertNotVisible: "Home"
       - back
       - assertVisible: "Sign out"

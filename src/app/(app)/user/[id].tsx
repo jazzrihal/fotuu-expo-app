@@ -84,9 +84,15 @@ export default function UserProfileScreen() {
 
   const handleOpenPostDetail = useCallback(
     (post: ProfileFeedPostWithImage) => {
-      openPostDetail(router, post, { testIDPrefix: 'user-post' });
+      if (!userId) {
+        return;
+      }
+      openPostDetail(router, post, {
+        testIDPrefix: 'user-post',
+        feedSource: { type: 'user', userId },
+      });
     },
-    [router],
+    [router, userId],
   );
 
   const actionPending =

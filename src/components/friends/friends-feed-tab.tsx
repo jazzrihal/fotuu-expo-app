@@ -1,7 +1,7 @@
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { Host, Text } from '@expo/ui';
 import { Empty } from '@/components/empty';
-import { FriendsFeedPager } from '@/components/friends/friends-feed-pager';
+import { PostFeedPager } from '@/components/post-feed-pager';
 import { queryKeys } from '@/queries/keys';
 import { useFriendsPostsQuery } from '@/queries/posts';
 import { useRefreshOnFocus } from '@/queries/useRefreshOnFocus';
@@ -42,8 +42,11 @@ export function FriendsFeedTab() {
 
   return (
     <View testID="friends-feed" style={styles.feed}>
-      <FriendsFeedPager
+      <PostFeedPager
         posts={posts}
+        testIDPrefix="friends-post"
+        testID="friends-feed-pager"
+        includeTabBarInset
         refreshing={feedQuery.isRefetching && !feedQuery.isPending}
         onRefresh={() => {
           void feedQuery.refetch();

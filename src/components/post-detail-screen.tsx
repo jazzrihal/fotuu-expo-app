@@ -1,19 +1,16 @@
-import { useCallback, useMemo } from "react";
+import { useMemo } from "react";
 import { ActivityIndicator } from "react-native";
 import { Host } from "@expo/ui";
 import { Empty } from "@/components/empty";
-import { PostDetailContent } from "@/components/post-detail-content";
-import { Stack, useLocalSearchParams, useRouter } from "expo-router";
-import { useAuth } from "@/context/auth";
+import { PostFeedPager } from "@/components/post-feed-pager";
+import { Stack, useLocalSearchParams } from "expo-router";
 import {
-  openUserProfile,
   parsePostDetailTestIDPrefix,
+  parsePostFeedSource,
 } from "@/lib/navigation";
 import {
-  getPostViewerEngagement,
+  usePostFeedPosts,
   usePostQuery,
-  useToggleLikeMutation,
-  useTogglePinMutation,
   type PostDetailWithImage,
 } from "@/queries/posts";
 
@@ -32,15 +29,18 @@ function parsePostParam(
 }
 
 export function PostDetailScreen() {
-  const router = useRouter();
-  const { session } = useAuth();
-  const { id, post: postParam, testIDPrefix: testIDPrefixParam } =
+  const { id, post: postParam, testIDPrefix: testIDPrefixParam, feedSource: feedSourceParam } =
     useLocalSearchParams<{
       id: string;
       post?: string;
       testIDPrefix?: string;
+      feedSource?: string;
     }>();
   const testIDPrefix = parsePostDetailTestIDPrefix(testIDPrefixParam);
+  const feedSource = useMemo(
+    () => parsePostFeedSource(feedSourceParam),
+    [feedSourceParam],
+  );
 
   const parsedPost = useMemo(() => parsePostParam(postParam), [postParam]);
 
@@ -51,56 +51,87 @@ export function PostDetailScreen() {
     return parsedPost?.id ?? null;
   }, [id, parsedPost?.id]);
 
-  const postQuery = usePostQuery(postId, {
+  const feedQuery = usePostFeedPosts(feedSource);
+
+  const fallbackPostQuery = usePostQuery(postId, {
     placeholderData: parsedPost ?? undefined,
+    enabled: !feedSource,
   });
 
-  const likeMutation = useToggleLikeMutation(postId);
-  const pinMutation = useTogglePinMutation(postId);
-
-  const post = postQuery.data;
-  const postEngagement = useMemo(
-    () =>
-      post
-        ? getPostViewerEngagement(post)
-        : { isLiked: false, isPinned: false },
-    [post],
+  const screenOptions = (
+    <Stack.Screen options={{ title: "", headerLargeTitle: false }} />
   );
 
-  const actionPending = likeMutation.isPending || pinMutation.isPending;
-  const actionError =
-    likeMutation.error?.message ?? pinMutation.error?.message ?? null;
-
-  const handleToggleLike = useCallback(() => {
-    if (!postId || actionPending) {
-      return;
-    }
-    likeMutation.mutate(!postEngagement.isLiked);
-  }, [actionPending, likeMutation, postEngagement.isLiked, postId]);
-
-  const handleTogglePin = useCallback(() => {
-    if (!postId || actionPending) {
-      return;
-    }
-    pinMutation.mutate(!postEngagement.isPinned);
-  }, [actionPending, pinMutation, postEngagement.isPinned, postId]);
-
-  const openAuthorProfile = useCallback(() => {
-    if (!post?.author_id) {
-      return;
+  if (feedSource && feedQuery) {
+    if (feedQuery.isPending && feedQuery.posts.length === 0) {
+      return (
+        <>
+          {screenOptions}
+          <Host
+            style={{ flex: 1, justifyContent: "center", alignItems: "center" }}
+          >
+            <ActivityIndicator />
+          </Host>
+        </>
+      );
     }
 
-    openUserProfile(router, session?.user.id, {
-      id: post.author_id,
-      displayName: post.display_name,
-      username: post.username,
-    });
-  }, [post, router, session?.user.id]);
+    if (feedQuery.error && feedQuery.posts.length === 0) {
+      return (
+        <>
+          {screenOptions}
+          <Empty
+            testID={`${testIDPrefix}-feed-error`}
+            title="Failed to load feed"
+            description={feedQuery.error.message}
+          />
+        </>
+      );
+    }
 
-  if (postQuery.isPending && !post) {
+    const initialIndex = postId
+      ? feedQuery.posts.findIndex((post) => post.id === postId)
+      : -1;
+
+    if (feedQuery.posts.length > 0 && initialIndex === -1) {
+      return (
+        <>
+          {screenOptions}
+          <Empty
+            testID={`${testIDPrefix}-not-found`}
+            title="Post not found"
+            description="It may have been removed."
+          />
+        </>
+      );
+    }
+
+    if (feedQuery.posts.length > 0 && initialIndex >= 0) {
+      return (
+        <>
+          {screenOptions}
+          <PostFeedPager
+            posts={feedQuery.posts}
+            testIDPrefix={testIDPrefix}
+            testID={`${testIDPrefix}-feed-pager`}
+            initialIndex={initialIndex}
+            includeTabBarInset={false}
+            refreshing={feedQuery.isRefetching && !feedQuery.isPending}
+            onRefresh={() => {
+              void feedQuery.refetch();
+            }}
+          />
+        </>
+      );
+    }
+  }
+
+  const fallbackPost = fallbackPostQuery.data;
+
+  if (fallbackPostQuery.isPending && !fallbackPost) {
     return (
       <>
-        <Stack.Screen options={{ title: "", headerLargeTitle: false }} />
+        {screenOptions}
         <Host
           style={{ flex: 1, justifyContent: "center", alignItems: "center" }}
         >
@@ -110,10 +141,10 @@ export function PostDetailScreen() {
     );
   }
 
-  if (!post) {
+  if (!fallbackPost) {
     return (
       <>
-        <Stack.Screen options={{ title: "", headerLargeTitle: false }} />
+        {screenOptions}
         <Empty
           testID={`${testIDPrefix}-not-found`}
           title="Post not found"
@@ -123,40 +154,16 @@ export function PostDetailScreen() {
     );
   }
 
-  const actionsDisabled = actionPending || !session?.user.id;
-
   return (
     <>
-      <Stack.Screen options={{ title: "", headerLargeTitle: false }} />
-      <PostDetailContent
-        post={post}
+      {screenOptions}
+      <PostFeedPager
+        posts={[fallbackPost]}
         testIDPrefix={testIDPrefix}
-        layout="detail"
-        onAuthorPress={openAuthorProfile}
-        onToggleLike={handleToggleLike}
-        onTogglePin={handleTogglePin}
-        isLiked={postEngagement.isLiked}
-        isPinned={postEngagement.isPinned}
-        actionsDisabled={actionsDisabled}
-        actionError={actionError}
+        testID={`${testIDPrefix}-feed-pager`}
+        initialIndex={0}
+        includeTabBarInset={false}
       />
-
-      <Stack.Toolbar placement="bottom">
-        <Stack.Toolbar.Button
-          accessibilityLabel={postEngagement.isLiked ? "Unlike" : "Like"}
-          disabled={actionsDisabled}
-          icon={postEngagement.isLiked ? "heart.fill" : "heart"}
-          selected={postEngagement.isLiked}
-          onPress={handleToggleLike}
-        />
-        <Stack.Toolbar.Button
-          accessibilityLabel={postEngagement.isPinned ? "Unpin" : "Pin"}
-          disabled={actionsDisabled}
-          icon={postEngagement.isPinned ? "pin.fill" : "pin"}
-          selected={postEngagement.isPinned}
-          onPress={handleTogglePin}
-        />
-      </Stack.Toolbar>
     </>
   );
 }

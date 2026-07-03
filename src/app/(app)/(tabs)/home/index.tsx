@@ -145,9 +145,20 @@ export default function Home() {
 
   const handleOpenPostDetail = useCallback(
     (post: FeedPostWithImage) => {
-      openPostDetail(router, post, { testIDPrefix: "home-post" });
+      if (!selectedLocation) {
+        return;
+      }
+      openPostDetail(router, post, {
+        testIDPrefix: "home-post",
+        feedSource: {
+          type: "home",
+          at: selectedDate.toISOString(),
+          latitude: selectedLocation.latitude,
+          longitude: selectedLocation.longitude,
+        },
+      });
     },
-    [router],
+    [router, selectedDate, selectedLocation],
   );
 
   const feedContent = (() => {

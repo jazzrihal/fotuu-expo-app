@@ -1,8 +1,4 @@
-import {
-  ScrollView as RNScrollView,
-  StyleSheet,
-  useWindowDimensions,
-} from "react-native";
+import { StyleSheet, useWindowDimensions } from "react-native";
 import {
   Column,
   Host,
@@ -23,8 +19,7 @@ type PostDetailTestIDPrefixValue = PostDetailTestIDPrefix | "post";
 type PostDetailContentProps = {
   post: PostDetailWithImage;
   testIDPrefix: PostDetailTestIDPrefixValue;
-  layout: "detail" | "feed";
-  pageHeight?: number;
+  pageHeight: number;
   bottomInset?: number;
   onAuthorPress: () => void;
   onToggleLike: () => void;
@@ -42,7 +37,6 @@ const FEED_METADATA_HEIGHT = 88;
 export function PostDetailContent({
   post,
   testIDPrefix,
-  layout,
   pageHeight,
   bottomInset = 0,
   onAuthorPress,
@@ -53,7 +47,7 @@ export function PostDetailContent({
   actionsDisabled,
   actionError,
 }: PostDetailContentProps) {
-  const { width, height: windowHeight } = useWindowDimensions();
+  const { width } = useWindowDimensions();
 
   const locationLine = buildLocationLine({
     address: post.address,
@@ -61,55 +55,37 @@ export function PostDetailContent({
     region: post.region,
   });
 
-  const isFeedLayout = layout === "feed";
-  const imageHeight = isFeedLayout
-    ? Math.max(
-        (pageHeight ?? windowHeight) -
-          FEED_METADATA_HEIGHT -
-          FEED_CAPTION_VISIBLE -
-          bottomInset,
-        120,
-      )
-    : windowHeight * 0.6;
-
-  const authorRow = isFeedLayout ? (
-    <Row spacing={8} alignment="center">
-      <Text
-        testID={`${testIDPrefix}-detail-author`}
-        textStyle={{ fontWeight: "600" }}
-        onPress={onAuthorPress}
-      >
-        {post.display_name}
-      </Text>
-      <Spacer flexible />
-      <Row spacing={25} alignment="center">
-        <PostFeedIconButton
-          icon={isLiked ? "heart.fill" : "heart"}
-          accessibilityLabel={isLiked ? "Unlike" : "Like"}
-          disabled={actionsDisabled}
-          onPress={onToggleLike}
-        />
-        <PostFeedIconButton
-          icon={isPinned ? "pin.fill" : "pin"}
-          accessibilityLabel={isPinned ? "Unpin" : "Pin"}
-          disabled={actionsDisabled}
-          onPress={onTogglePin}
-        />
-      </Row>
-    </Row>
-  ) : (
-    <Text
-      testID={`${testIDPrefix}-detail-author`}
-      textStyle={{ fontWeight: "600" }}
-      onPress={onAuthorPress}
-    >
-      {post.display_name}
-    </Text>
+  const imageHeight = Math.max(
+    pageHeight - FEED_METADATA_HEIGHT - FEED_CAPTION_VISIBLE - bottomInset,
+    120,
   );
 
   const metadataBlock = (
     <Column spacing={4} style={styles.metadata}>
-      {authorRow}
+      <Row spacing={8} alignment="center">
+        <Text
+          testID={`${testIDPrefix}-detail-author`}
+          textStyle={{ fontWeight: "600" }}
+          onPress={onAuthorPress}
+        >
+          {post.display_name}
+        </Text>
+        <Spacer flexible />
+        <Row spacing={25} alignment="center">
+          <PostFeedIconButton
+            icon={isLiked ? "heart.fill" : "heart"}
+            accessibilityLabel={isLiked ? "Unlike" : "Like"}
+            disabled={actionsDisabled}
+            onPress={onToggleLike}
+          />
+          <PostFeedIconButton
+            icon={isPinned ? "pin.fill" : "pin"}
+            accessibilityLabel={isPinned ? "Unpin" : "Pin"}
+            disabled={actionsDisabled}
+            onPress={onTogglePin}
+          />
+        </Row>
+      </Row>
       <Text testID={`${testIDPrefix}-detail-date`}>
         {formatCapturedAtAgo(post.captured_at)}
       </Text>
@@ -127,38 +103,9 @@ export function PostDetailContent({
     </Column>
   );
 
-  if (isFeedLayout) {
-    return (
-      <Host testID={`${testIDPrefix}-detail`} style={{ height: pageHeight }}>
-        <ScrollView showsIndicators={false} style={{ height: pageHeight }}>
-          <RNHostView matchContents>
-            <Image
-              resizeOnTap
-              testID={`${testIDPrefix}-detail-image`}
-              source={post.imageUrl ? { uri: post.imageUrl } : undefined}
-              style={{ width, height: imageHeight }}
-            />
-          </RNHostView>
-          {metadataBlock}
-          {post.caption ? (
-            <Column style={styles.feedCaption}>
-              <Text testID={`${testIDPrefix}-detail-caption`}>
-                {post.caption}
-              </Text>
-            </Column>
-          ) : null}
-        </ScrollView>
-      </Host>
-    );
-  }
-
   return (
-    <Host
-      testID={`${testIDPrefix}-detail`}
-      style={{ flex: 1 }}
-      useViewportSizeMeasurement
-    >
-      <Column>
+    <Host testID={`${testIDPrefix}-detail`} style={{ height: pageHeight }}>
+      <ScrollView showsIndicators={false} style={{ height: pageHeight }}>
         <RNHostView matchContents>
           <Image
             resizeOnTap
@@ -168,18 +115,14 @@ export function PostDetailContent({
           />
         </RNHostView>
         {metadataBlock}
-        <RNScrollView
-          style={styles.detailCaptionScroll}
-          contentInsetAdjustmentBehavior="automatic"
-          contentContainerStyle={styles.detailCaptionScrollContent}
-        >
-          {post.caption ? (
+        {post.caption ? (
+          <Column style={styles.feedCaption}>
             <Text testID={`${testIDPrefix}-detail-caption`}>
               {post.caption}
             </Text>
-          ) : null}
-        </RNScrollView>
-      </Column>
+          </Column>
+        ) : null}
+      </ScrollView>
     </Host>
   );
 }
@@ -193,12 +136,5 @@ const styles = StyleSheet.create({
   feedCaption: {
     paddingHorizontal: 12,
     paddingBottom: 8,
-  },
-  detailCaptionScroll: {
-    flex: 1,
-  },
-  detailCaptionScrollContent: {
-    flexGrow: 1,
-    paddingHorizontal: 12,
   },
 });

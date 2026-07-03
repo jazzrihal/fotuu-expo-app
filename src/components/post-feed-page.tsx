@@ -2,25 +2,30 @@ import { memo, useCallback, useMemo } from "react";
 import { useRouter } from "expo-router";
 import { PostDetailContent } from "@/components/post-detail-content";
 import { useAuth } from "@/context/auth";
-import { openUserProfile } from "@/lib/navigation";
+import {
+  openUserProfile,
+  type PostDetailTestIDPrefix,
+} from "@/lib/navigation";
 import {
   getPostViewerEngagement,
   useToggleLikeMutation,
   useTogglePinMutation,
-  type FriendsPostWithImage,
+  type PostDetailWithImage,
 } from "@/queries/posts";
 
-type FriendsFeedPostPageProps = {
-  post: FriendsPostWithImage;
+type PostFeedPageProps = {
+  post: PostDetailWithImage;
+  testIDPrefix: PostDetailTestIDPrefix | "post";
   pageHeight: number;
   bottomInset: number;
 };
 
-export const FriendsFeedPostPage = memo(function FriendsFeedPostPage({
+export const PostFeedPage = memo(function PostFeedPage({
   post,
+  testIDPrefix,
   pageHeight,
   bottomInset,
-}: FriendsFeedPostPageProps) {
+}: PostFeedPageProps) {
   const router = useRouter();
   const { session } = useAuth();
 
@@ -62,8 +67,7 @@ export const FriendsFeedPostPage = memo(function FriendsFeedPostPage({
   return (
     <PostDetailContent
       post={post}
-      testIDPrefix="friends-post"
-      layout="feed"
+      testIDPrefix={testIDPrefix}
       pageHeight={pageHeight}
       bottomInset={bottomInset}
       onAuthorPress={openAuthorProfile}

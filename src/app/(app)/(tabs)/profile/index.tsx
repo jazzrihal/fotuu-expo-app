@@ -37,9 +37,15 @@ export default function Profile() {
 
   const handleOpenPostDetail = useCallback(
     (post: ProfileFeedPostWithImage) => {
-      openPostDetail(router, post, { testIDPrefix: 'profile-post' });
+      if (!userId) {
+        return;
+      }
+      openPostDetail(router, post, {
+        testIDPrefix: 'profile-post',
+        feedSource: { type: 'profile', userId },
+      });
     },
-    [router],
+    [router, userId],
   );
 
   const feedContent = (() => {

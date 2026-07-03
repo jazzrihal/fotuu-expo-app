@@ -13,6 +13,8 @@ env:
 - tapOn:
     point: "16%,32%"
 - assertVisible:
+    id: "home-post-feed-pager"
+- assertVisible:
     id: "home-post-detail"
 - assertVisible:
     id: "home-post-detail-image"
@@ -30,6 +32,10 @@ env:
 - tapOn: "Unlike"
 - tapOn: "Pin"
 - tapOn: "Unpin"
+- swipe:
+    direction: UP
+    from:
+      id: "home-post-feed-pager"
 - assertNotVisible: "Friends"
 - assertNotVisible: "Profile"
 - back

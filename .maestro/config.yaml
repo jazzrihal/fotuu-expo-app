@@ -13,6 +13,7 @@ executionOrder:
     - sign-up
     - view-profile
     - view-profile-post-detail
+    - view-user-profile-post-detail
     - list
     - search
     - requests
