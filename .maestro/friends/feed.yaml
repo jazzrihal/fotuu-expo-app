@@ -13,10 +13,16 @@ env:
 - runFlow:
     when:
       visible:
-        id: "friends-feed-grid"
+        id: "friends-feed-pager"
     commands:
       - assertVisible:
-          id: "friends-feed-grid"
+          id: "friends-feed-pager"
+      - assertVisible:
+          id: "friends-post-detail"
+      - swipe:
+          direction: UP
+          from:
+            id: "friends-feed-pager"
 - runFlow:
     when:
       visible:

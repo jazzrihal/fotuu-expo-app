@@ -1,19 +1,12 @@
-import { useCallback } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { Host, Text } from '@expo/ui';
-import { useRouter } from 'expo-router';
 import { Empty } from '@/components/empty';
-import { openPostDetail } from '@/lib/navigation';
-import { PostFeedGrid } from '@/components/post-feed-grid';
+import { FriendsFeedPager } from '@/components/friends/friends-feed-pager';
 import { queryKeys } from '@/queries/keys';
-import {
-  useFriendsPostsQuery,
-  type FriendsPostWithImage,
-} from '@/queries/posts';
+import { useFriendsPostsQuery } from '@/queries/posts';
 import { useRefreshOnFocus } from '@/queries/useRefreshOnFocus';
 
 export function FriendsFeedTab() {
-  const router = useRouter();
   const feedQuery = useFriendsPostsQuery();
 
   useRefreshOnFocus(queryKeys.friendsPosts());
@@ -22,13 +15,6 @@ export function FriendsFeedTab() {
   const showLoading = feedQuery.isPending;
   const showError = !!feedQuery.error && !showLoading;
   const showEmpty = !showLoading && !feedQuery.error && posts.length === 0;
-
-  const handleOpenPostDetail = useCallback(
-    (post: FriendsPostWithImage) => {
-      openPostDetail(router, post, { testIDPrefix: 'friends-post' });
-    },
-    [router],
-  );
 
   if (showLoading) {
     return <ActivityIndicator style={styles.loader} testID="friends-feed-loading" />;
@@ -56,12 +42,8 @@ export function FriendsFeedTab() {
 
   return (
     <View testID="friends-feed" style={styles.feed}>
-      <PostFeedGrid
-        testID="friends-feed-grid"
-        testIDPrefix="friends-feed"
+      <FriendsFeedPager
         posts={posts}
-        onPostPress={handleOpenPostDetail}
-        contentInsetAdjustmentBehavior="automatic"
         refreshing={feedQuery.isRefetching && !feedQuery.isPending}
         onRefresh={() => {
           void feedQuery.refetch();

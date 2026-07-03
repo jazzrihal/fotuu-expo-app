@@ -1,15 +1,10 @@
 import { useCallback, useMemo } from "react";
-import {
-  ActivityIndicator,
-  ScrollView,
-  useWindowDimensions,
-} from "react-native";
-import { Column, Host, RNHostView, Text } from "@expo/ui";
+import { ActivityIndicator } from "react-native";
+import { Host } from "@expo/ui";
 import { Empty } from "@/components/empty";
-import { Image } from "@/components/image";
+import { PostDetailContent } from "@/components/post-detail-content";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { useAuth } from "@/context/auth";
-import { buildLocationLine, formatCapturedAt } from "@/lib/post-display";
 import {
   openUserProfile,
   parsePostDetailTestIDPrefix,
@@ -37,7 +32,6 @@ function parsePostParam(
 }
 
 export function PostDetailScreen() {
-  const { width, height } = useWindowDimensions();
   const router = useRouter();
   const { session } = useAuth();
   const { id, post: postParam, testIDPrefix: testIDPrefixParam } =
@@ -129,76 +123,23 @@ export function PostDetailScreen() {
     );
   }
 
-  const locationLine = buildLocationLine({
-    address: post.address,
-    city: post.city,
-    region: post.region,
-  });
-
   const actionsDisabled = actionPending || !session?.user.id;
 
   return (
     <>
       <Stack.Screen options={{ title: "", headerLargeTitle: false }} />
-      <Host
-        testID={`${testIDPrefix}-detail`}
-        style={{ flex: 1 }}
-        useViewportSizeMeasurement
-      >
-        <Column>
-          <RNHostView matchContents>
-            <Image
-              resizeOnTap
-              testID={`${testIDPrefix}-detail-image`}
-              source={post.imageUrl ? { uri: post.imageUrl } : undefined}
-              style={{ width, height: height * 0.6 }}
-            />
-          </RNHostView>
-
-          <Column
-            spacing={4}
-            style={{ paddingHorizontal: 12, paddingVertical: 8 }}
-          >
-            <Text
-              testID={`${testIDPrefix}-detail-author`}
-              textStyle={{ fontWeight: "600" }}
-              onPress={openAuthorProfile}
-            >
-              {post.display_name}
-            </Text>
-            {locationLine ? (
-              <Text testID={`${testIDPrefix}-detail-location`}>
-                {locationLine}
-              </Text>
-            ) : null}
-            <Text testID={`${testIDPrefix}-detail-date`}>
-              {formatCapturedAt(post.captured_at)}
-            </Text>
-            {actionError ? (
-              <Text
-                testID={`${testIDPrefix}-detail-action-error`}
-                textStyle={{ color: "#DC2626" }}
-              >
-                {actionError}
-              </Text>
-            ) : null}
-          </Column>
-
-          <ScrollView
-            style={{ flex: 1 }}
-            contentInsetAdjustmentBehavior="automatic"
-            contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 12 }}
-          >
-            {post.caption ? (
-              <Host matchContents>
-                <Text testID={`${testIDPrefix}-detail-caption`}>
-                  {post.caption}
-                </Text>
-              </Host>
-            ) : null}
-          </ScrollView>
-        </Column>
-      </Host>
+      <PostDetailContent
+        post={post}
+        testIDPrefix={testIDPrefix}
+        layout="detail"
+        onAuthorPress={openAuthorProfile}
+        onToggleLike={handleToggleLike}
+        onTogglePin={handleTogglePin}
+        isLiked={postEngagement.isLiked}
+        isPinned={postEngagement.isPinned}
+        actionsDisabled={actionsDisabled}
+        actionError={actionError}
+      />
 
       <Stack.Toolbar placement="bottom">
         <Stack.Toolbar.Button
