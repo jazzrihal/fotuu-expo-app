@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   StyleSheet,
+  Text,
   TouchableOpacity,
   useWindowDimensions,
   View,
@@ -10,6 +11,7 @@ import {
   Button,
   Column,
   Host,
+  Icon,
   Picker,
   Row,
   RNHostView,
@@ -17,7 +19,13 @@ import {
   Text as UiText,
   TextInput,
 } from "@expo/ui";
-import { CameraView, useCameraPermissions } from "expo-camera";
+import {
+  CameraView,
+  useCameraPermissions,
+  type CameraType,
+  type FocusMode,
+} from "expo-camera";
+import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { Empty } from "@/components/empty";
 import { EmptyActionsSheet } from "@/components/empty-actions-sheet";
 import { Image } from "@/components/image";
@@ -32,6 +40,10 @@ import { useCreatePostMutation } from "@/queries/posts";
 import { useUserProfileQuery } from "@/queries/profile";
 
 const CAPTION_MAX_LENGTH = 500;
+
+function formatZoomLabel(zoom: number): string {
+  return `${(1 + zoom * 9).toFixed(1)}x`;
+}
 
 export default function NewPostScreen() {
   const router = useRouter();
@@ -56,6 +68,30 @@ export default function NewPostScreen() {
   const [capturing, setCapturing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [cameraSheetOpen, setCameraSheetOpen] = useState(true);
+  const [zoom, setZoom] = useState(0);
+  const [facing, setFacing] = useState<CameraType>("back");
+  const [gpsEnabled, setGpsEnabled] = useState(true);
+  const [autofocusMode, setAutofocusMode] = useState<FocusMode>("off");
+  const [focusSquare, setFocusSquare] = useState({
+    visible: false,
+    x: 0,
+    y: 0,
+  });
+  const [showZoomIndicator, setShowZoomIndicator] = useState(false);
+
+  const zoomRef = useRef(zoom);
+  const pinchStartZoom = useRef(0);
+  const zoomIndicatorTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
+  const focusTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const autofocusTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
+
+  useEffect(() => {
+    zoomRef.current = zoom;
+  }, [zoom]);
 
   const profileQuery = useUserProfileQuery(session?.user.id, {
     enabled: !!session?.user.id && !!imageUri,
@@ -69,7 +105,81 @@ export default function NewPostScreen() {
   );
 
   useEffect(() => {
-    if (!imageUri) {
+    return () => {
+      if (zoomIndicatorTimeoutRef.current) {
+        clearTimeout(zoomIndicatorTimeoutRef.current);
+      }
+      if (focusTimeoutRef.current) {
+        clearTimeout(focusTimeoutRef.current);
+      }
+      if (autofocusTimeoutRef.current) {
+        clearTimeout(autofocusTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  const handlePinchBegin = useCallback(() => {
+    pinchStartZoom.current = zoomRef.current;
+    setShowZoomIndicator(true);
+    if (zoomIndicatorTimeoutRef.current) {
+      clearTimeout(zoomIndicatorTimeoutRef.current);
+    }
+  }, []);
+
+  const handlePinchUpdate = useCallback((scale: number) => {
+    const logScale = Math.log2(scale);
+    const next = Math.min(
+      1,
+      Math.max(0, pinchStartZoom.current + logScale * 0.35),
+    );
+    setZoom(next);
+  }, []);
+
+  const handlePinchEnd = useCallback(() => {
+    zoomIndicatorTimeoutRef.current = setTimeout(() => {
+      setShowZoomIndicator(false);
+    }, 1000);
+  }, []);
+
+  const handleTapFocus = useCallback((x: number, y: number) => {
+    setFocusSquare({ visible: true, x, y });
+    setAutofocusMode("on");
+    if (autofocusTimeoutRef.current) {
+      clearTimeout(autofocusTimeoutRef.current);
+    }
+    autofocusTimeoutRef.current = setTimeout(() => {
+      setAutofocusMode("off");
+    }, 100);
+    if (focusTimeoutRef.current) {
+      clearTimeout(focusTimeoutRef.current);
+    }
+    focusTimeoutRef.current = setTimeout(() => {
+      setFocusSquare((current) => ({ ...current, visible: false }));
+    }, 800);
+  }, []);
+
+  /* eslint-disable react-hooks/refs -- RNGH handlers read refs only when gestures fire */
+  const cameraGesture = useMemo(() => {
+    const pinchGesture = Gesture.Pinch()
+      .onBegin(handlePinchBegin)
+      .onUpdate((event) => {
+        handlePinchUpdate(event.scale);
+      })
+      .onEnd(handlePinchEnd)
+      .runOnJS(true);
+
+    const tapGesture = Gesture.Tap()
+      .onEnd((event) => {
+        handleTapFocus(event.x, event.y);
+      })
+      .runOnJS(true);
+
+    return Gesture.Race(tapGesture, pinchGesture);
+  }, [handlePinchBegin, handlePinchEnd, handlePinchUpdate, handleTapFocus]);
+  /* eslint-enable react-hooks/refs */
+
+  useEffect(() => {
+    if (!imageUri || !gpsEnabled) {
       return;
     }
 
@@ -121,7 +231,16 @@ export default function NewPostScreen() {
     return () => {
       cancelled = true;
     };
-  }, [imageUri]);
+  }, [imageUri, gpsEnabled]);
+
+  function handleFlipCamera() {
+    if (capturing) {
+      return;
+    }
+
+    setFacing((current) => (current === "back" ? "front" : "back"));
+    setZoom(0);
+  }
 
   async function handleShutter() {
     if (capturing || !cameraRef.current) {
@@ -246,9 +365,36 @@ export default function NewPostScreen() {
     return (
       <>
         <View style={styles.cameraScreen}>
-          <View style={styles.cameraPreview}>
-            <CameraView ref={cameraRef} style={styles.camera} facing="back" />
-          </View>
+          <GestureDetector gesture={cameraGesture}>
+            <View style={styles.cameraPreview}>
+              <CameraView
+                ref={cameraRef}
+                style={styles.camera}
+                facing={facing}
+                zoom={zoom}
+                autofocus={autofocusMode}
+              />
+              {focusSquare.visible ? (
+                <View
+                  pointerEvents="none"
+                  style={[
+                    styles.focusSquare,
+                    {
+                      top: focusSquare.y - 30,
+                      left: focusSquare.x - 30,
+                    },
+                  ]}
+                />
+              ) : null}
+              {showZoomIndicator ? (
+                <View pointerEvents="none" style={styles.zoomIndicator}>
+                  <Text style={styles.zoomIndicatorText}>
+                    {formatZoomLabel(zoom)}
+                  </Text>
+                </View>
+              ) : null}
+            </View>
+          </GestureDetector>
           <View
             style={[styles.controls, { backgroundColor: colors.background }]}
           >
@@ -265,32 +411,74 @@ export default function NewPostScreen() {
                 </UiText>
               </Host>
             ) : null}
-            <TouchableOpacity
-              testID="camera-shutter-button"
-              accessibilityLabel="Take photo"
-              style={[
-                styles.shutterButton,
-                {
-                  borderColor: colors.text,
-                  backgroundColor: shutterRingColor,
-                },
-              ]}
-              disabled={capturing}
-              onPress={() => {
-                void handleShutter();
-              }}
-            >
-              {capturing ? (
-                <ActivityIndicator color={colors.text} />
-              ) : (
-                <View
-                  style={[
-                    styles.shutterInner,
-                    { backgroundColor: colors.text },
-                  ]}
-                />
-              )}
-            </TouchableOpacity>
+            <View style={styles.controlsRow}>
+              <View style={styles.controlButton}>
+                <Host matchContents>
+                  <Button
+                    testID="camera-gps-toggle"
+                    variant="text"
+                    disabled={capturing}
+                    onPress={() => {
+                      setGpsEnabled((current) => !current);
+                    }}
+                  >
+                    <Icon
+                      name={gpsEnabled ? "location.fill" : "location.slash"}
+                      size={22}
+                      color={gpsEnabled ? "#0A84FF" : "#FFFFFF"}
+                      accessibilityLabel={
+                        gpsEnabled
+                          ? "Disable location for post"
+                          : "Enable location for post"
+                      }
+                    />
+                  </Button>
+                </Host>
+              </View>
+              <TouchableOpacity
+                testID="camera-shutter-button"
+                accessibilityLabel="Take photo"
+                style={[
+                  styles.shutterButton,
+                  {
+                    borderColor: colors.text,
+                    backgroundColor: shutterRingColor,
+                  },
+                ]}
+                disabled={capturing}
+                onPress={() => {
+                  void handleShutter();
+                }}
+              >
+                {capturing ? (
+                  <ActivityIndicator color={colors.text} />
+                ) : (
+                  <View
+                    style={[
+                      styles.shutterInner,
+                      { backgroundColor: colors.text },
+                    ]}
+                  />
+                )}
+              </TouchableOpacity>
+              <View style={styles.controlButton}>
+                <Host matchContents>
+                  <Button
+                    testID="camera-flip-button"
+                    variant="text"
+                    disabled={capturing}
+                    onPress={handleFlipCamera}
+                  >
+                    <Icon
+                      name="camera.rotate"
+                      size={22}
+                      color="#FFFFFF"
+                      accessibilityLabel="Flip camera"
+                    />
+                  </Button>
+                </Host>
+              </View>
+            </View>
           </View>
         </View>
         <Stack.Screen options={{ title: "" }} />
@@ -429,10 +617,44 @@ const styles = StyleSheet.create({
   },
   controls: {
     height: 160,
+    justifyContent: "center",
+    gap: 12,
+    paddingBottom: 16,
+    paddingHorizontal: 16,
+  },
+  controlsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-around",
+  },
+  controlButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     alignItems: "center",
     justifyContent: "center",
-    gap: 16,
-    paddingBottom: 16,
+    backgroundColor: "rgba(255, 255, 255, 0.15)",
+  },
+  focusSquare: {
+    position: "absolute",
+    width: 60,
+    height: 60,
+    borderWidth: 2,
+    borderColor: "#FFD60A",
+  },
+  zoomIndicator: {
+    position: "absolute",
+    bottom: 24,
+    alignSelf: "center",
+    backgroundColor: "rgba(0, 0, 0, 0.55)",
+    borderRadius: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  zoomIndicatorText: {
+    color: "#FFFFFF",
+    fontSize: 14,
+    fontWeight: "600",
   },
   shutterButton: {
     width: 72,
