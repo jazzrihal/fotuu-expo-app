@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 import {
   ActivityIndicator,
   ScrollView,
@@ -7,7 +7,7 @@ import {
 } from 'react-native';
 import { Host, Text } from '@expo/ui';
 import { Empty } from '@/components/empty';
-import { PostFeedGrid } from '@/components/post-feed-grid';
+import { PostFeedGrid, type PostGridItem } from '@/components/post-feed-grid';
 import { Stack, useRouter } from 'expo-router';
 import { useAuth } from '@/context/auth';
 import { profileDisplayName } from '@/lib/profile-display';
@@ -17,6 +17,13 @@ import {
   type ProfileFeedPostWithImage,
 } from '@/queries/posts';
 import { useUserProfileQuery } from '@/queries/profile';
+import { useLocalPosts } from '@/hooks/useLocalPosts';
+import type { LocalPost } from '@/lib/post-manager';
+
+type ProfileGridItem = PostGridItem & {
+  _localPost?: LocalPost;
+  _remotePost?: ProfileFeedPostWithImage;
+};
 
 export default function Profile() {
   const router = useRouter();
@@ -26,24 +33,47 @@ export default function Profile() {
 
   const profileQuery = useUserProfileQuery(userId);
   const feedQuery = useProfileFeedQuery(userId);
+  const { localPosts } = useLocalPosts(userId);
 
   const displayName = profileDisplayName(profileQuery.data, email);
 
-  const posts = feedQuery.data ?? [];
-  const showFeedLoading = feedQuery.isPending;
-  const showFeedError = !!feedQuery.error && !showFeedLoading;
+  // Build merged grid items: local-only posts first (sorted newest first), then remote
+  const mergedPosts = useMemo((): ProfileGridItem[] => {
+    const remoteIds = new Set((feedQuery.data ?? []).map((p) => p.id));
+
+    const localItems: ProfileGridItem[] = localPosts
+      .filter((lp) => !remoteIds.has(lp.remote_post_id ?? ''))
+      .map((lp) => ({
+        id: lp.id,
+        imageUrl: lp.local_image_uri,
+        isLocal: true,
+        syncStatus: lp.status,
+        _localPost: lp,
+      }));
+
+    const remoteItems: ProfileGridItem[] = (feedQuery.data ?? []).map((rp) => ({
+      ...rp,
+      _remotePost: rp,
+    }));
+
+    return [...localItems, ...remoteItems];
+  }, [localPosts, feedQuery.data]);
+
+  const showFeedLoading = feedQuery.isPending && localPosts.length === 0;
+  const showFeedError = !!feedQuery.error && !feedQuery.isPending && mergedPosts.length === 0;
   const showFeedEmpty =
-    !showFeedLoading && !feedQuery.error && posts.length === 0;
+    !feedQuery.isPending && !feedQuery.error && mergedPosts.length === 0;
 
   const handleOpenPostDetail = useCallback(
-    (post: ProfileFeedPostWithImage) => {
-      if (!userId) {
-        return;
+    (post: ProfileGridItem) => {
+      if (!userId) return;
+      if (post._remotePost) {
+        openPostDetail(router, post._remotePost, {
+          testIDPrefix: 'profile-post',
+          feedSource: { type: 'profile', userId },
+        });
       }
-      openPostDetail(router, post, {
-        testIDPrefix: 'profile-post',
-        feedSource: { type: 'profile', userId },
-      });
+      // Local-only posts open their own detail screen (not yet implemented)
     },
     [router, userId],
   );
@@ -96,7 +126,7 @@ export default function Profile() {
       <PostFeedGrid
         testID="profile-feed-grid"
         testIDPrefix="profile-feed"
-        posts={posts}
+        posts={mergedPosts}
         onPostPress={handleOpenPostDetail}
         contentInsetAdjustmentBehavior="automatic"
         refreshing={feedQuery.isRefetching && !feedQuery.isPending}

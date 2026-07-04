@@ -9,7 +9,10 @@
     "userInterfaceStyle": "automatic",
     "ios": {
       "icon": "./assets/images/icon.png",
-      "bundleIdentifier": "com.jazzrihal.Fotuu"
+      "bundleIdentifier": "com.jazzrihal.Fotuu",
+      "infoPlist": {
+        "UIBackgroundModes": ["processing", "fetch"]
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -53,6 +56,7 @@
         }
       ],
       "expo-sqlite",
+      "expo-background-task",
       [
         "expo-maps",
         {

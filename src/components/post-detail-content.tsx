@@ -1,5 +1,6 @@
 import { StyleSheet, useWindowDimensions } from "react-native";
 import {
+  Button,
   Column,
   Host,
   RNHostView,
@@ -13,8 +14,16 @@ import { PostFeedIconButton } from "@/components/post-feed-icon-button";
 import { buildLocationLine, formatCapturedAtAgo } from "@/lib/post-display";
 import type { PostDetailTestIDPrefix } from "@/lib/navigation";
 import type { PostDetailWithImage } from "@/queries/posts";
+import type { LocalPost } from "@/lib/post-manager";
 
 type PostDetailTestIDPrefixValue = PostDetailTestIDPrefix | "post";
+
+const SYNC_STATUS_LABELS: Record<string, string> = {
+  local: 'Saved locally',
+  queued: 'Waiting to upload',
+  uploading: 'Uploading…',
+  failed: 'Upload failed',
+};
 
 type PostDetailContentProps = {
   post: PostDetailWithImage;
@@ -28,6 +37,8 @@ type PostDetailContentProps = {
   isPinned: boolean;
   actionsDisabled: boolean;
   actionError: string | null;
+  localPost?: LocalPost | null;
+  onUploadToCloud?: () => void;
 };
 
 const CAPTION_LINE_HEIGHT = 22;
@@ -46,6 +57,8 @@ export function PostDetailContent({
   isPinned,
   actionsDisabled,
   actionError,
+  localPost,
+  onUploadToCloud,
 }: PostDetailContentProps) {
   const { width } = useWindowDimensions();
 
@@ -99,6 +112,24 @@ export function PostDetailContent({
         >
           {actionError}
         </Text>
+      ) : null}
+      {localPost ? (
+        <Row spacing={8} alignment="center">
+          <Text
+            testID={`${testIDPrefix}-detail-sync-status`}
+            textStyle={{ color: localPost.status === 'failed' ? '#DC2626' : '#6B7280' }}
+          >
+            {SYNC_STATUS_LABELS[localPost.status] ?? localPost.status}
+          </Text>
+          {(localPost.status === 'local' || localPost.status === 'failed') && onUploadToCloud ? (
+            <Button
+              testID={`${testIDPrefix}-detail-upload-btn`}
+              variant="outlined"
+              label="Upload to Cloud"
+              onPress={onUploadToCloud}
+            />
+          ) : null}
+        </Row>
       ) : null}
     </Column>
   );

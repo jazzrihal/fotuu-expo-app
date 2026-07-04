@@ -36,6 +36,8 @@ import { resolvePostLocationParts } from "@/lib/location-label";
 import { buildLocationLine, formatCapturedAt } from "@/lib/post-display";
 import { type PostPrivacyScope } from "@/lib/posts";
 import { profileDisplayName } from "@/lib/profile-display";
+import { saveLocalPost, queuePostForUpload } from "@/lib/post-manager";
+import { runSync } from "@/lib/sync-manager";
 import { useCreatePostMutation } from "@/queries/posts";
 import { useUserProfileQuery } from "@/queries/profile";
 
@@ -66,6 +68,7 @@ export default function NewPostScreen() {
   const [privacyScope, setPrivacyScope] =
     useState<PostPrivacyScope>("friends_only");
   const [capturing, setCapturing] = useState(false);
+  const [savedLocally, setSavedLocally] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [cameraSheetOpen, setCameraSheetOpen] = useState(true);
   const [zoom, setZoom] = useState(0);
@@ -269,6 +272,26 @@ export default function NewPostScreen() {
     }
   }
 
+  async function handleSaveForLater() {
+    if (!imageUri || !session?.user.id || !capturedAt) return;
+    setError(null);
+    const result = await saveLocalPost({
+      userId: session.user.id,
+      localImageUri: imageUri,
+      capturedAt: capturedAt.toISOString(),
+      caption,
+      privacyScope,
+      latitude,
+      longitude,
+    });
+    if (result.error) {
+      setError(result.error);
+    } else {
+      setSavedLocally(true);
+      router.back();
+    }
+  }
+
   function handleSubmit() {
     if (!imageUri || !session?.user.id || !capturedAt || createPostMutation.isPending) {
       return;
@@ -288,8 +311,25 @@ export default function NewPostScreen() {
       },
       {
         onSuccess: () => router.back(),
-        onError: (mutationError) => {
-          setError(mutationError.message);
+        onError: async () => {
+          // Network/upload failed — save locally and queue for later sync
+          const saveResult = await saveLocalPost({
+            userId: session!.user.id,
+            localImageUri: imageUri!,
+            capturedAt: capturedAt!.toISOString(),
+            caption,
+            privacyScope,
+            latitude,
+            longitude,
+          });
+          if (!saveResult.error && saveResult.localPost) {
+            await queuePostForUpload(saveResult.localPost.id);
+            void runSync();
+            setSavedLocally(true);
+            router.back();
+          } else {
+            setError('Failed to post. Please try again.');
+          }
         },
       },
     );
@@ -297,7 +337,7 @@ export default function NewPostScreen() {
 
   const submitting = createPostMutation.isPending;
   const submitError =
-    error ?? profileQuery.error?.message ?? createPostMutation.error?.message ?? null;
+    savedLocally ? null : error ?? profileQuery.error?.message ?? createPostMutation.error?.message ?? null;
 
   if (!imageUri) {
     if (!permission) {
@@ -590,6 +630,13 @@ export default function NewPostScreen() {
         </Stack.Toolbar.Button>
       </Stack.Toolbar>
       <Stack.Toolbar placement="right">
+        <Stack.Toolbar.Button
+          accessibilityLabel="Save for later"
+          disabled={submitting}
+          onPress={() => { void handleSaveForLater(); }}
+        >
+          Save
+        </Stack.Toolbar.Button>
         <Stack.Toolbar.Button
           accessibilityLabel="Post"
           disabled={submitting}

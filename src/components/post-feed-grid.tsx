@@ -4,9 +4,12 @@ import {
   StyleSheet,
   useColorScheme,
   useWindowDimensions,
+  View,
 } from "react-native";
 import { FlashList } from "@shopify/flash-list";
+import { SymbolView } from "expo-symbols";
 import { Image } from "@/components/image";
+import type { LocalPostStatus } from "@/lib/post-db";
 
 const GRID_COLUMNS = 3;
 const GRID_GAP = 1;
@@ -14,6 +17,8 @@ const GRID_GAP = 1;
 export type PostGridItem = {
   id: string;
   imageUrl?: string;
+  isLocal?: boolean;
+  syncStatus?: LocalPostStatus;
 };
 
 type PostFeedGridProps<T extends PostGridItem> = {
@@ -74,6 +79,18 @@ export function PostFeedGrid<T extends PostGridItem>({
             style={{ width: itemWidth, height: tileSize }}
             contentFit="cover"
           />
+          {item.isLocal ? (
+            <View style={styles.offlineBadge} pointerEvents="none">
+              <SymbolView
+                name={item.syncStatus === 'uploading' ? 'icloud.and.arrow.up' : 'icloud.slash'}
+                size={18}
+                tintColor="#FFFFFF"
+                accessibilityLabel={
+                  item.syncStatus === 'uploading' ? 'Uploading' : 'Not uploaded'
+                }
+              />
+            </View>
+          ) : null}
         </Pressable>
       );
     },
@@ -101,5 +118,13 @@ const styles = StyleSheet.create({
   gridContent: {
     paddingTop: 0,
     paddingHorizontal: 0,
+  },
+  offlineBadge: {
+    position: 'absolute',
+    bottom: 6,
+    right: 6,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    borderRadius: 12,
+    padding: 4,
   },
 });
