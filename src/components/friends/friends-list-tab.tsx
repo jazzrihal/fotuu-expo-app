@@ -1,22 +1,22 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   StyleSheet,
   type NativeSyntheticEvent,
   Text as RNText,
   type TextInputFocusEventData,
-} from 'react-native';
-import type { SearchBarCommands } from 'react-native-screens';
-import { Button, Column, FieldGroup, Host, Row, Text } from '@expo/ui';
-import { useNavigation } from 'expo-router';
-import { Empty } from '@/components/empty';
-import { ProfileListItem } from '@/components/profile-list-item';
-import { SwipeableProfileListItem } from '@/components/swipeable-profile-list-item';
-import type { ProfileSearchResult } from '@/lib/friends';
+} from "react-native";
+import type { SearchBarCommands } from "react-native-screens";
+import { Button, Column, FieldGroup, Host, Row, Text } from "@expo/ui";
+import { useNavigation } from "expo-router";
+import { Empty } from "@/components/empty";
+import { ProfileListItem } from "@/components/profile-list-item";
+import { SwipeableProfileListItem } from "@/components/swipeable-profile-list-item";
+import type { ProfileSearchResult } from "@/lib/friends";
 import {
   parseRelationshipStatus,
   type RelationshipKind,
-} from '@/lib/relationship-status';
+} from "@/lib/relationship-status";
 import {
   useCancelFriendRequestMutation,
   useFriendsQuery,
@@ -26,9 +26,9 @@ import {
   useRemoveFriendMutation,
   useRespondToFriendRequestMutation,
   useSendFriendRequestMutation,
-} from '@/queries/friends';
-import { queryKeys } from '@/queries/keys';
-import { useRefreshOnFocus } from '@/queries/useRefreshOnFocus';
+} from "@/queries/friends";
+import { queryKeys } from "@/queries/keys";
+import { useRefreshOnFocus } from "@/queries/useRefreshOnFocus";
 
 const SEARCH_DEBOUNCE_MS = 350;
 const MIN_QUERY_LENGTH = 2;
@@ -52,8 +52,8 @@ export function FriendsListTab({
 }: FriendsListTabProps) {
   const navigation = useNavigation();
   const searchBarRef = useRef<SearchBarCommands>(null);
-  const [query, setQuery] = useState('');
-  const [debouncedQuery, setDebouncedQuery] = useState('');
+  const [query, setQuery] = useState("");
+  const [debouncedQuery, setDebouncedQuery] = useState("");
 
   const friendsQuery = useFriendsQuery();
   const incomingQuery = useIncomingRequestsQuery();
@@ -67,7 +67,7 @@ export function FriendsListTab({
   const sendMutation = useSendFriendRequestMutation();
   const removeFriendMutation = useRemoveFriendMutation();
 
-  useRefreshOnFocus(queryKeys.friends(), ['friend-requests']);
+  useRefreshOnFocus(queryKeys.friends(), ["friend-requests"]);
 
   const trimmedQuery = query.trim();
   const isSearchActive = trimmedQuery.length >= MIN_QUERY_LENGTH;
@@ -87,12 +87,11 @@ export function FriendsListTab({
     outgoingQuery.error?.message ??
     null;
 
-  const busyRequestId =
-    respondMutation.isPending
-      ? respondMutation.variables?.requestId ?? null
-      : cancelMutation.isPending
-        ? cancelMutation.variables ?? null
-        : null;
+  const busyRequestId = respondMutation.isPending
+    ? (respondMutation.variables?.requestId ?? null)
+    : cancelMutation.isPending
+      ? (cancelMutation.variables ?? null)
+      : null;
 
   const busyProfileId = sendMutation.isPending
     ? (sendMutation.variables ?? null)
@@ -111,19 +110,19 @@ export function FriendsListTab({
     navigation.setOptions({
       headerSearchBarOptions: {
         ref: searchBarRef,
-        placeholder: 'Search by username or name',
-        autoCapitalize: 'none',
+        placeholder: "Search by username or name",
+        autoCapitalize: "none",
         autoFocus: true,
         hideWhenScrolling: false,
-        placement: 'inline',
+        placement: "inline",
         onChangeText: (
           event: NativeSyntheticEvent<TextInputFocusEventData>,
         ) => {
           setQuery(event.nativeEvent.text);
         },
         onCancelButtonPress: () => {
-          setQuery('');
-          setDebouncedQuery('');
+          setQuery("");
+          setDebouncedQuery("");
           onSearchOpenChange(false);
         },
       },
@@ -246,12 +245,25 @@ export function FriendsListTab({
                   profileId={request.id}
                   displayName={request.display_name}
                   username={request.username}
-                  actionLabel="Decline"
-                  actionDisabled={
-                    busyRequestId !== null &&
-                    busyRequestId !== request.request_id
-                  }
-                  onAction={() => handleRespond(request.request_id, false)}
+                  leadingActions={[
+                    {
+                      label: "Accept",
+                      disabled:
+                        busyRequestId !== null &&
+                        busyRequestId !== request.request_id,
+                      onPress: () => handleRespond(request.request_id, true),
+                    },
+                  ]}
+                  trailingActions={[
+                    {
+                      label: "Decline",
+                      disabled:
+                        busyRequestId !== null &&
+                        busyRequestId !== request.request_id,
+                      onPress: () => handleRespond(request.request_id, false),
+                    },
+                    ,
+                  ]}
                   trailing={
                     <Row spacing={8} alignment="center">
                       <Button
@@ -259,26 +271,22 @@ export function FriendsListTab({
                         variant="filled"
                         label={
                           busyRequestId === request.request_id
-                            ? 'Accepting…'
-                            : 'Accept'
+                            ? "Accepting…"
+                            : "Accept"
                         }
                         disabled={busyRequestId !== null}
-                        onPress={() =>
-                          handleRespond(request.request_id, true)
-                        }
+                        onPress={() => handleRespond(request.request_id, true)}
                       />
                       <Button
                         testID={`decline-request-${request.username}`}
                         variant="outlined"
                         label={
                           busyRequestId === request.request_id
-                            ? 'Declining…'
-                            : 'Decline'
+                            ? "Declining…"
+                            : "Decline"
                         }
                         disabled={busyRequestId !== null}
-                        onPress={() =>
-                          handleRespond(request.request_id, false)
-                        }
+                        onPress={() => handleRespond(request.request_id, false)}
                       />
                     </Row>
                   }
@@ -291,20 +299,23 @@ export function FriendsListTab({
                   profileId={request.id}
                   displayName={request.display_name}
                   username={request.username}
-                  actionLabel="Cancel"
-                  actionDisabled={
-                    busyRequestId !== null &&
-                    busyRequestId !== request.request_id
-                  }
-                  onAction={() => handleCancel(request.request_id)}
+                  trailingActions={[
+                    {
+                      label: "Cancel",
+                      disabled:
+                        busyRequestId !== null &&
+                        busyRequestId !== request.request_id,
+                      onPress: () => handleCancel(request.request_id),
+                    },
+                  ]}
                   trailing={
                     <Button
                       testID={`cancel-request-${request.username}`}
                       variant="outlined"
                       label={
                         busyRequestId === request.request_id
-                          ? 'Canceling…'
-                          : 'Cancel'
+                          ? "Canceling…"
+                          : "Cancel"
                       }
                       disabled={busyRequestId !== null}
                       onPress={() => handleCancel(request.request_id)}
@@ -316,8 +327,8 @@ export function FriendsListTab({
           ) : null}
           {friends.length > 0 ? (
             <FieldGroup.Section
-              title={hasRequests ? 'Friends' : undefined}
-              testID={hasRequests ? 'friends-section' : undefined}
+              title={hasRequests ? "Friends" : undefined}
+              testID={hasRequests ? "friends-section" : undefined}
             >
               {friends.map((item) => (
                 <SwipeableProfileListItem
@@ -327,11 +338,15 @@ export function FriendsListTab({
                   displayName={item.display_name}
                   username={item.username}
                   subtitle={formatFriendsSince(item.friends_since)}
-                  actionLabel="Remove"
-                  actionDisabled={
-                    busyFriendId !== null && busyFriendId !== item.id
-                  }
-                  onAction={() => handleRemoveFriend(item.id)}
+                  trailingActions={[
+                    {
+                      label: "Remove",
+                      role: "destructive",
+                      disabled:
+                        busyFriendId !== null && busyFriendId !== item.id,
+                      onPress: () => handleRemoveFriend(item.id),
+                    },
+                  ]}
                 />
               ))}
             </FieldGroup.Section>
@@ -354,21 +369,21 @@ function searchTrailingAction({
   onSendRequest: (profileId: string) => void;
 }) {
   switch (relationship) {
-    case 'self':
+    case "self":
       return null;
-    case 'friends':
+    case "friends":
       return <Text>Friends</Text>;
-    case 'outgoing_request':
+    case "outgoing_request":
       return <Text>Pending</Text>;
-    case 'incoming_request':
+    case "incoming_request":
       return <Text>Respond</Text>;
-    case 'none':
-    case 'unknown':
+    case "none":
+    case "unknown":
       return (
         <Button
           testID={`send-request-${profile.username}`}
           variant="filled"
-          label={busyProfileId === profile.id ? 'Adding…' : 'Add'}
+          label={busyProfileId === profile.id ? "Adding…" : "Add"}
           disabled={busyProfileId !== null}
           onPress={() => onSendRequest(profile.id)}
         />

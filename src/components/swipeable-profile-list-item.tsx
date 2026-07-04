@@ -1,6 +1,13 @@
 import type { ReactNode } from 'react';
 import { ProfileListItem } from '@/components/profile-list-item';
 
+export type SwipeAction = {
+  label: string;
+  onPress: () => void;
+  disabled?: boolean;
+  role?: 'destructive' | 'default';
+};
+
 export type SwipeableProfileListItemProps = {
   displayName: string;
   username: string;
@@ -8,9 +15,8 @@ export type SwipeableProfileListItemProps = {
   subtitle?: string;
   testID?: string;
   trailing?: ReactNode;
-  actionLabel: string;
-  onAction: () => void;
-  actionDisabled?: boolean;
+  trailingActions?: SwipeAction[];
+  leadingActions?: SwipeAction[];
 };
 
 /** Default (e.g. web): swipe actions are native-only; render a plain list row. */
