@@ -80,3 +80,35 @@ Workflows under `.github/workflows/`:
 ### Web platform caveat
 
 `app.json` uses `"web": { "output": "static" }` and `expo-sqlite/localStorage/install`. Expo web SSR often fails resolving `wa-sqlite.wasm`. CI does not gate on web.
+
+---
+
+## Local native modules (`modules/`)
+
+Modules created with `npx create-expo-module@latest --local` live under `modules/<name>/`. Expo autolinking discovers them automatically — `expo-modules-autolinking search` and `resolve` will find them. However:
+
+**`expo run:ios` can silently skip pod install** when it detects the `ios/` directory and `Podfile.lock` already exist, even when a new native module has been added. The new pod will be missing from `Podfile.lock` and `ios/Pods/`, and `requireOptionalNativeModule('<Name>')` will return `null` at runtime with no error.
+
+**Diagnosis checklist** when a native module returns `null`:
+
+```bash
+# 1. Confirm autolinking finds the module
+npx expo-modules-autolinking resolve --platform apple --json | python3 -c "
+import sys,json; mods=json.loads(sys.stdin.read())['modules']
+print([m['packageName'] for m in mods if 'location' in m['packageName']])"
+
+# 2. Confirm the pod is in Podfile.lock
+grep '<PodName>' ios/Podfile.lock
+
+# 3. Confirm the pod is installed
+ls ios/Pods/<PodName>
+```
+
+**Fix:** run pod install directly — `expo run:ios` will NOT do this automatically when Podfile.lock already exists:
+
+```bash
+npx pod-install          # or: cd ios && pod install
+npx expo run:ios         # rebuild with the newly installed pod
+```
+
+Do this every time a module is added to `modules/` or `expo-module.config.json` is changed.

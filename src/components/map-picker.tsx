@@ -1,10 +1,15 @@
 import { AppleMaps, GoogleMaps } from "expo-maps";
-import { useState } from "react";
+import type { AppleMapsViewType } from "expo-maps/build/apple/AppleMaps.types";
+import { forwardRef, useImperativeHandle, useRef, useState } from "react";
 import { Platform, View, useWindowDimensions, type StyleProp, type ViewStyle } from "react-native";
 
 export type MapCoordinates = {
   latitude: number;
   longitude: number;
+};
+
+export type MapPickerHandle = {
+  setCameraPosition: (coords: MapCoordinates, zoom?: number) => void;
 };
 
 type MapPickerProps = {
@@ -14,14 +19,14 @@ type MapPickerProps = {
   style?: StyleProp<ViewStyle>;
 };
 
-export function MapPicker({
-  viewCoordinates,
-  markerCoordinates,
-  onCoordinatesChange,
-  style,
-}: MapPickerProps) {
+export const MapPicker = forwardRef<MapPickerHandle, MapPickerProps>(function MapPicker(
+  { viewCoordinates, markerCoordinates, onCoordinatesChange, style },
+  ref,
+) {
   const { width: windowWidth } = useWindowDimensions();
   const [edgeInset, setEdgeInset] = useState(0);
+  const appleMapRef = useRef<AppleMapsViewType>(null);
+
   const cameraPosition = {
     coordinates: {
       latitude: viewCoordinates.latitude,
@@ -40,6 +45,15 @@ export function MapPicker({
     },
   ];
 
+  useImperativeHandle(ref, () => ({
+    setCameraPosition(coords: MapCoordinates, zoom = 14) {
+      appleMapRef.current?.setCameraPosition({
+        coordinates: { latitude: coords.latitude, longitude: coords.longitude },
+        zoom,
+      });
+    },
+  }));
+
   if (Platform.OS === "ios") {
     return (
       <View
@@ -50,6 +64,7 @@ export function MapPicker({
         }}
       >
         <AppleMaps.View
+          ref={appleMapRef}
           style={[{ flex: 1, marginHorizontal: edgeInset > 0 ? -edgeInset : 0 }, style]}
           cameraPosition={cameraPosition}
           markers={markers}
@@ -81,4 +96,4 @@ export function MapPicker({
   }
 
   return null;
-}
+});
