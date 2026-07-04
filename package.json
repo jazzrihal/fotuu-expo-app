@@ -54,7 +54,8 @@
     "build:e2e:ios": "EXPO_PUBLIC_SUPABASE_ENV=local expo run:ios --configuration Release",
     "build:e2e:android": "EXPO_PUBLIC_SUPABASE_ENV=local expo run:android --variant release",
     "test:e2e": "maestro test .maestro/",
-    "gen:types": "supabase gen types typescript --local --workdir ../fotuu-supabase-backend > src/lib/database.types.ts"
+    "gen:types": "supabase gen types typescript --local --workdir ../fotuu-supabase-backend > src/lib/database.types.ts",
+    "dev:mac": "bash scripts/dev-mac.sh"
   },
   "private": true
 }
