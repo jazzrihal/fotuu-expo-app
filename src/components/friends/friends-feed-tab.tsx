@@ -1,13 +1,10 @@
 import { useCallback, useMemo } from 'react';
-import { ActivityIndicator, StyleSheet, useWindowDimensions, View } from 'react-native';
-import { FieldGroup, Host, RNHostView, Text } from '@expo/ui';
+import { ActivityIndicator, StyleSheet, useWindowDimensions } from 'react-native';
+import { FieldGroup, Host, Text } from '@expo/ui';
 import { useRouter } from 'expo-router';
 import { Empty } from '@/components/empty';
-import {
-  FRIENDS_FEED_SECTION_FOOTER_INSET,
-  FriendsFeedThumbnailRow,
-  getFriendsFeedThumbnailRowHeight,
-} from '@/components/friends/friends-feed-thumbnail-row';
+import { FriendsFeedThumbnailSlot } from '@/components/friends/friends-feed-thumbnail-slot';
+import { getFriendsFeedThumbnailRowHeight } from '@/components/friends/friends-feed-thumbnail-row';
 import { useAuth } from '@/context/auth';
 import { openUserProfile } from '@/lib/navigation';
 import { flattenFriendsPostsGrouped } from '@/lib/posts';
@@ -114,27 +111,13 @@ export function FriendsFeedTab() {
                 {group.display_name}
               </Text>
             </FieldGroup.SectionHeader>
-            <FieldGroup.SectionFooter>
-              <RNHostView matchContents>
-                <View
-                  style={[
-                    styles.thumbnailSlot,
-                    {
-                      width: screenWidth,
-                      height: rowHeight,
-                      marginHorizontal: -FRIENDS_FEED_SECTION_FOOTER_INSET,
-                    },
-                  ]}
-                >
-                  <FriendsFeedThumbnailRow
-                    posts={group.posts}
-                    screenWidth={screenWidth}
-                    testIDPrefix="friends-feed"
-                    onPostPress={handleOpenPostDetail}
-                  />
-                </View>
-              </RNHostView>
-            </FieldGroup.SectionFooter>
+            <FriendsFeedThumbnailSlot
+              posts={group.posts}
+              screenWidth={screenWidth}
+              rowHeight={rowHeight}
+              testIDPrefix="friends-feed"
+              onPostPress={handleOpenPostDetail}
+            />
           </FieldGroup.Section>
           );
         })}
@@ -146,9 +129,6 @@ export function FriendsFeedTab() {
 const styles = StyleSheet.create({
   feed: {
     flex: 1,
-  },
-  thumbnailSlot: {
-    overflow: 'hidden',
   },
   loader: {
     marginTop: 32,

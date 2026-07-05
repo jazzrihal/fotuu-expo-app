@@ -8,8 +8,32 @@ import {
 import { Image } from '@/components/image';
 import type { FriendsPostWithImage } from '@/queries/posts';
 
-/** Horizontal inset applied by FieldGroup.SectionFooter on web/Android. */
-export const FRIENDS_FEED_SECTION_FOOTER_INSET = 16;
+/** Horizontal inset applied by FieldGroup.Section rows on web. */
+export const FRIENDS_FEED_SECTION_ROW_INSET = 16;
+
+/** Default SwiftUI Form row insets to counter on iOS via listRowInsets. */
+export const FRIENDS_FEED_IOS_LIST_ROW_BLEED = {
+  horizontal: 20,
+  vertical: 12,
+};
+
+const ANDROID_LIST_ITEM_INSET = { horizontal: 16, vertical: 8 };
+const ANDROID_LIST_ITEM_MIN_HEIGHT = 56;
+
+export function getFriendsFeedAndroidListItemOffset(rowHeight: number): {
+  x: number;
+  y: number;
+} {
+  const minHeightGap =
+    rowHeight < ANDROID_LIST_ITEM_MIN_HEIGHT
+      ? (ANDROID_LIST_ITEM_MIN_HEIGHT - rowHeight) / 2
+      : 0;
+
+  return {
+    x: -ANDROID_LIST_ITEM_INSET.horizontal,
+    y: -(ANDROID_LIST_ITEM_INSET.vertical + minHeightGap),
+  };
+}
 
 const GRID_GAP = 1;
 
