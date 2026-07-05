@@ -459,29 +459,26 @@ export default function NewPostScreen() {
               </Host>
             ) : null}
             <View style={styles.controlsRow}>
-              <View style={styles.controlButton}>
-                <Host matchContents>
-                  <Button
-                    testID="camera-gps-toggle"
-                    variant="text"
-                    disabled={capturing}
-                    onPress={() => {
-                      setGpsEnabled((current) => !current);
-                    }}
-                  >
-                    <Icon
-                      name={gpsEnabled ? "location.fill" : "location.slash"}
-                      size={22}
-                      color={gpsEnabled ? "#0A84FF" : "#FFFFFF"}
-                      accessibilityLabel={
-                        gpsEnabled
-                          ? "Disable location for post"
-                          : "Enable location for post"
-                      }
-                    />
-                  </Button>
-                </Host>
-              </View>
+              <Host matchContents>
+                <Button
+                  testID="camera-gps-toggle"
+                  variant="text"
+                  disabled={capturing}
+                  onPress={() => {
+                    setGpsEnabled((current) => !current);
+                  }}
+                >
+                  <Icon
+                    name={gpsEnabled ? "location.fill" : "location.slash"}
+                    size={22}
+                    accessibilityLabel={
+                      gpsEnabled
+                        ? "Disable location for post"
+                        : "Enable location for post"
+                    }
+                  />
+                </Button>
+              </Host>
               <TouchableOpacity
                 testID="camera-shutter-button"
                 accessibilityLabel="Take photo"
@@ -508,23 +505,20 @@ export default function NewPostScreen() {
                   />
                 )}
               </TouchableOpacity>
-              <View style={styles.controlButton}>
-                <Host matchContents>
-                  <Button
-                    testID="camera-flip-button"
-                    variant="text"
-                    disabled={capturing}
-                    onPress={handleFlipCamera}
-                  >
-                    <Icon
-                      name="camera.rotate"
-                      size={22}
-                      color="#FFFFFF"
-                      accessibilityLabel="Flip camera"
-                    />
-                  </Button>
-                </Host>
-              </View>
+              <Host matchContents>
+                <Button
+                  testID="camera-flip-button"
+                  variant="text"
+                  disabled={capturing}
+                  onPress={handleFlipCamera}
+                >
+                  <Icon
+                    name="camera.rotate"
+                    size={22}
+                    accessibilityLabel="Flip camera"
+                  />
+                </Button>
+              </Host>
             </View>
           </View>
         </View>
@@ -680,14 +674,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-around",
-  },
-  controlButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "rgba(255, 255, 255, 0.15)",
   },
   focusSquare: {
     position: "absolute",
