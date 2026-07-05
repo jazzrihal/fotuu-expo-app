@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useRef } from 'react';
 import {
   ActivityIndicator,
   ScrollView,
@@ -36,14 +36,20 @@ export default function Profile() {
   const profileQuery = useUserProfileQuery(userId);
   const feedQuery = useProfileFeedQuery(userId);
   const { localPosts, refresh: refreshLocalPosts } = useLocalPosts(userId);
+  const isFirstProfileFocus = useRef(true);
 
-  // Re-fetch local posts every time this tab gains focus (covers NativeTabs
-  // remount/lazy-load scenarios where the post-change listener may have fired
-  // before this screen was subscribed).
+  // Re-fetch local posts and remote feed every time this tab gains focus (covers
+  // NativeTabs remount/lazy-load scenarios where listeners may have fired while
+  // the screen was inactive, e.g. pin toggled from Home or Friends).
   useFocusEffect(
     useCallback(() => {
       refreshLocalPosts();
-    }, [refreshLocalPosts]),
+      if (isFirstProfileFocus.current) {
+        isFirstProfileFocus.current = false;
+        return;
+      }
+      void feedQuery.refetch();
+    }, [feedQuery.refetch, refreshLocalPosts]),
   );
 
   const displayName = profileDisplayName(profileQuery.data, email);

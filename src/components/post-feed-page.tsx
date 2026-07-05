@@ -9,6 +9,7 @@ import {
 } from "@/lib/navigation";
 import {
   getPostViewerEngagement,
+  usePostQuery,
   useToggleLikeMutation,
   useTogglePinMutation,
   type PostDetailWithImage,
@@ -35,9 +36,14 @@ export const PostFeedPage = memo(function PostFeedPage({
   const likeMutation = useToggleLikeMutation(isLocalOnly ? null : post.id);
   const pinMutation = useTogglePinMutation(isLocalOnly ? null : post.id);
 
+  const { data: cachedPost } = usePostQuery(isLocalOnly ? null : post.id, {
+    enabled: false,
+    placeholderData: post,
+  });
+
   const postEngagement = useMemo(
-    () => getPostViewerEngagement(post),
-    [post],
+    () => getPostViewerEngagement(cachedPost ?? post),
+    [cachedPost, post],
   );
 
   const actionPending = likeMutation.isPending || pinMutation.isPending;

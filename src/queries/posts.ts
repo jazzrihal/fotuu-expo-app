@@ -232,6 +232,62 @@ function patchPostListCaches(
   queryClient.setQueriesData({ queryKey: queryKeys.friendsPosts() }, groupedUpdater);
 }
 
+function findPostInListCaches(
+  queryClient: ReturnType<typeof useQueryClient>,
+  postId: string,
+): PostDetailWithImage | undefined {
+  for (const [, posts] of queryClient.getQueriesData<FeedPostWithImage[]>({
+    queryKey: ['feed'],
+  })) {
+    const match = posts?.find((post) => post.id === postId);
+    if (match) return match;
+  }
+
+  for (const [, posts] of queryClient.getQueriesData<ProfileFeedPostWithImage[]>({
+    queryKey: ['profile-feed'],
+  })) {
+    const match = posts?.find((post) => post.id === postId);
+    if (match) return match;
+  }
+
+  for (const [, grouped] of queryClient.getQueriesData<FriendsPostsGroupedWithImages>({
+    queryKey: queryKeys.friendsPosts(),
+  })) {
+    for (const group of grouped?.groups ?? []) {
+      const match = group.posts.find((post) => post.id === postId);
+      if (match) return match as PostDetailWithImage;
+    }
+  }
+
+  return undefined;
+}
+
+function patchPostDetailCache(
+  queryClient: ReturnType<typeof useQueryClient>,
+  postId: string,
+  patch: Partial<PostDetailWithImage>,
+) {
+  queryClient.setQueryData<PostDetailWithImage>(queryKeys.post(postId), (old) => {
+    const current = old ?? findPostInListCaches(queryClient, postId);
+    if (!current) return old;
+    return { ...current, ...patch };
+  });
+}
+
+function isPostInProfileFeedCaches(
+  queryClient: ReturnType<typeof useQueryClient>,
+  postId: string,
+): boolean {
+  for (const [, posts] of queryClient.getQueriesData<ProfileFeedPostWithImage[]>({
+    queryKey: ['profile-feed'],
+  })) {
+    if (posts?.some((post) => post.id === postId)) {
+      return true;
+    }
+  }
+  return false;
+}
+
 export function useToggleLikeMutation(postId: string | null) {
   const queryClient = useQueryClient();
 
@@ -249,12 +305,8 @@ export function useToggleLikeMutation(postId: string | null) {
         queryKeys.post(postId),
       );
 
-      queryClient.setQueryData<PostDetailWithImage>(queryKeys.post(postId), (old) => {
-        if (!old) return old;
-        return {
-          ...old,
-          user_reaction: (nextLiked ? 'like' : null) as unknown as PostDetail['user_reaction'],
-        };
+      patchPostDetailCache(queryClient, postId, {
+        user_reaction: (nextLiked ? 'like' : null) as unknown as PostDetail['user_reaction'],
       });
 
       patchPostListCaches(queryClient, postId, {
@@ -294,19 +346,19 @@ export function useTogglePinMutation(postId: string | null) {
         queryKeys.post(postId),
       );
 
-      queryClient.setQueryData<PostDetailWithImage>(queryKeys.post(postId), (old) =>
-        old
-          ? {
-              ...old,
-              is_pinned_by_current_user: nextPinned,
-            }
-          : old,
-      );
+      patchPostDetailCache(queryClient, postId, {
+        is_pinned_by_current_user: nextPinned,
+        is_pinned_to_current_profile: nextPinned,
+      });
 
       patchPostListCaches(queryClient, postId, {
         is_pinned_by_current_user: nextPinned,
         is_pinned_to_current_profile: nextPinned,
       });
+
+      if (!isPostInProfileFeedCaches(queryClient, postId)) {
+        queryClient.invalidateQueries({ queryKey: ['profile-feed'] });
+      }
 
       return { previousPost };
     },
@@ -320,6 +372,7 @@ export function useTogglePinMutation(postId: string | null) {
     onSettled: () => {
       if (!postId) return;
       queryClient.invalidateQueries({ queryKey: queryKeys.post(postId) });
+      queryClient.invalidateQueries({ queryKey: ['profile-feed'] });
     },
   });
 }
