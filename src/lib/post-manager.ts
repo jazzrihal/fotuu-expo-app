@@ -15,6 +15,18 @@ import {
 
 const LOCAL_POSTS_DIR = `${FileSystem.documentDirectory}local-posts/`;
 
+type PostChangeListener = () => void;
+const postChangeListeners = new Set<PostChangeListener>();
+
+export function addPostChangeListener(fn: PostChangeListener): () => void {
+  postChangeListeners.add(fn);
+  return () => postChangeListeners.delete(fn);
+}
+
+function notifyPostChangeListeners() {
+  for (const fn of postChangeListeners) fn();
+}
+
 async function ensureLocalPostsDir(): Promise<void> {
   const info = await FileSystem.getInfoAsync(LOCAL_POSTS_DIR);
   if (!info.exists) {
@@ -78,7 +90,9 @@ export async function saveLocalPost(input: SaveLocalPostInput): Promise<SaveLoca
     };
     const now = Date.now();
     await insertLocalPost(db, post, now);
-    return { localPost: { ...post, created_at: now, updated_at: now }, error: null };
+    const saved = { localPost: { ...post, created_at: now, updated_at: now }, error: null };
+    notifyPostChangeListeners();
+    return saved;
   } catch (err) {
     return { localPost: null, error: err instanceof Error ? err.message : 'Failed to save post' };
   }
@@ -135,6 +149,7 @@ export async function deleteLocalPost(localPostId: string): Promise<{ error: str
     const db = await getDb();
     await deleteLocalImage(db, localPostId);
     await deleteLocalPostRow(db, localPostId);
+    notifyPostChangeListeners();
     return { error: null };
   } catch (err) {
     return { error: err instanceof Error ? err.message : 'Failed to delete post' };

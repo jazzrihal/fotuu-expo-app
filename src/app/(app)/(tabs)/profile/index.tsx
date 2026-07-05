@@ -8,7 +8,7 @@ import {
 import { Host, Text } from '@expo/ui';
 import { Empty } from '@/components/empty';
 import { PostFeedGrid, type PostGridItem } from '@/components/post-feed-grid';
-import { Stack, useRouter } from 'expo-router';
+import { Stack, useFocusEffect, useRouter } from 'expo-router';
 import { useAuth } from '@/context/auth';
 import { profileDisplayName } from '@/lib/profile-display';
 import { openPostDetail } from '@/lib/navigation';
@@ -33,7 +33,16 @@ export default function Profile() {
 
   const profileQuery = useUserProfileQuery(userId);
   const feedQuery = useProfileFeedQuery(userId);
-  const { localPosts } = useLocalPosts(userId);
+  const { localPosts, refresh: refreshLocalPosts } = useLocalPosts(userId);
+
+  // Re-fetch local posts every time this tab gains focus (covers NativeTabs
+  // remount/lazy-load scenarios where the post-change listener may have fired
+  // before this screen was subscribed).
+  useFocusEffect(
+    useCallback(() => {
+      refreshLocalPosts();
+    }, [refreshLocalPosts]),
+  );
 
   const displayName = profileDisplayName(profileQuery.data, email);
 

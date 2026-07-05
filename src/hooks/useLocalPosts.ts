@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { AppState, type AppStateStatus } from 'react-native';
-import { getLocalPosts, type LocalPost } from '@/lib/post-manager';
+import { addPostChangeListener, getLocalPosts, type LocalPost } from '@/lib/post-manager';
 import { addSyncListener } from '@/lib/sync-manager';
 
 /**
@@ -38,6 +38,11 @@ export function useLocalPosts(userId: string | undefined): {
   // Re-fetch after each sync run (status changes)
   useEffect(() => {
     return addSyncListener(fetchPosts);
+  }, [fetchPosts]);
+
+  // Re-fetch when a local post is saved or deleted
+  useEffect(() => {
+    return addPostChangeListener(fetchPosts);
   }, [fetchPosts]);
 
   // Re-fetch when app becomes active
