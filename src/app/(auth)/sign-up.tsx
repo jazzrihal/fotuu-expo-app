@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { ActivityIndicator, Text, View } from 'react-native';
+import { ActivityIndicator } from 'react-native';
 import { Button, Column, Host, Row, ScrollView, Text as UiText, TextInput } from '@expo/ui';
-import { Link, router } from 'expo-router';
+import { router, useTheme } from 'expo-router';
 import { useAuth } from '@/context/auth';
 
 export default function SignUp() {
+  const { colors } = useTheme();
   const { signUp } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -39,19 +40,19 @@ export default function SignUp() {
 
   if (needsConfirmation) {
     return (
-      <View
-        testID="sign-up-confirmation"
-        style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24, gap: 16 }}
-      >
-        <Text>Check your email</Text>
-        <Text style={{ textAlign: 'center' }}>
-          We sent a confirmation link to{' '}
-          <Text selectable>{email}</Text>. Click the link to activate your account.
-        </Text>
-        <Link replace href="/(auth)/sign-in">
-          <Text>Back to sign in</Text>
-        </Link>
-      </View>
+      <Host testID="sign-up-confirmation" style={{ flex: 1, justifyContent: 'center' }}>
+        <Column spacing={16} style={{ padding: 24 }}>
+          <UiText>Check your email</UiText>
+          <UiText textStyle={{ textAlign: 'center' }}>
+            We sent a confirmation link to {email}. Click the link to activate your account.
+          </UiText>
+          <Button
+            variant="text"
+            label="Back to sign in"
+            onPress={() => router.replace('/(auth)/sign-in')}
+          />
+        </Column>
+      </Host>
     );
   }
 
@@ -105,7 +106,10 @@ export default function SignUp() {
             </Column>
 
             {error ? (
-              <UiText testID="sign-up-error" textStyle={{ color: '#DC2626' }}>
+              <UiText
+                testID="sign-up-error"
+                textStyle={{ color: colors.notification as string }}
+              >
                 {error}
               </UiText>
             ) : null}
@@ -117,7 +121,7 @@ export default function SignUp() {
               onPress={handleSignUp}
               disabled={loading}
             >
-              {loading ? <ActivityIndicator /> : null}
+              {loading ? <ActivityIndicator color={colors.text} /> : null}
             </Button>
           </Column>
 

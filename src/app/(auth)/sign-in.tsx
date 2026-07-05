@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { ActivityIndicator } from 'react-native';
 import { Button, Column, Host, Row, ScrollView, Text as UiText, TextInput } from '@expo/ui';
-import { router } from 'expo-router';
+import { router, useTheme } from 'expo-router';
 import { useAuth } from '@/context/auth';
 
 export default function SignIn() {
+  const { colors } = useTheme();
   const { signIn } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -61,7 +62,10 @@ export default function SignIn() {
             </Column>
 
             {error ? (
-              <UiText testID="sign-in-error" textStyle={{ color: '#DC2626' }}>
+              <UiText
+                testID="sign-in-error"
+                textStyle={{ color: colors.notification as string }}
+              >
                 {error}
               </UiText>
             ) : null}
@@ -73,7 +77,7 @@ export default function SignIn() {
               onPress={handleSignIn}
               disabled={loading}
             >
-              {loading ? <ActivityIndicator /> : null}
+              {loading ? <ActivityIndicator color={colors.text} /> : null}
             </Button>
           </Column>
 
