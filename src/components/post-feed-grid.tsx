@@ -8,6 +8,7 @@ import {
 import { FlashList } from "@shopify/flash-list";
 import { Image } from "@/components/image";
 import { LocalPostSyncBadge } from "@/components/local-post-sync-badge";
+import { PinnedPostBadge } from "@/components/pinned-post-badge";
 import type { LocalPostStatus } from "@/lib/post-db";
 
 const GRID_COLUMNS = 3;
@@ -18,6 +19,7 @@ export type PostGridItem = {
   imageUrl?: string;
   isLocal?: boolean;
   syncStatus?: LocalPostStatus;
+  isPinned?: boolean;
 };
 
 type PostFeedGridProps<T extends PostGridItem> = {
@@ -78,6 +80,7 @@ export function PostFeedGrid<T extends PostGridItem>({
             style={{ width: itemWidth, height: tileSize }}
             contentFit="cover"
           />
+          {item.isPinned ? <PinnedPostBadge /> : null}
           {item.isLocal && item.syncStatus ? (
             <LocalPostSyncBadge
               testID="local-post-thumbnail"

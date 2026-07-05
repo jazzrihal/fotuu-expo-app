@@ -1,6 +1,5 @@
-import { StyleSheet, View } from "react-native";
-import { SymbolView } from "expo-symbols";
 import type { LocalPostStatus } from "@/lib/post-db";
+import { PostGridOverlayBadge } from "@/components/post-grid-overlay-badge";
 
 type LocalPostSyncBadgeProps = {
   syncStatus: LocalPostStatus;
@@ -14,24 +13,10 @@ export function LocalPostSyncBadge({
   const uploading = syncStatus === "uploading";
 
   return (
-    <View testID={testID} style={styles.badge} pointerEvents="none">
-      <SymbolView
-        name={uploading ? "icloud.and.arrow.up" : "icloud.slash"}
-        size={18}
-        tintColor="#FFFFFF"
-        accessibilityLabel={uploading ? "Uploading" : "Not uploaded"}
-      />
-    </View>
+    <PostGridOverlayBadge
+      testID={testID}
+      symbolName={uploading ? "icloud.and.arrow.up" : "icloud.slash"}
+      accessibilityLabel={uploading ? "Uploading" : "Not uploaded"}
+    />
   );
 }
-
-const styles = StyleSheet.create({
-  badge: {
-    position: "absolute",
-    bottom: 6,
-    right: 6,
-    backgroundColor: "rgba(0,0,0,0.55)",
-    borderRadius: 12,
-    padding: 4,
-  },
-});

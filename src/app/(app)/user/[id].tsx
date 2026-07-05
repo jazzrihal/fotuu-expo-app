@@ -77,6 +77,14 @@ export default function UserProfileScreen() {
   const hasRouteProfileHint = !!routeDisplayName || !!routeUsername;
 
   const posts = feedQuery.data ?? [];
+  const gridPosts = useMemo(
+    () =>
+      (feedQuery.data ?? []).map((post) => ({
+        ...post,
+        isPinned: post.is_pinned_to_current_profile,
+      })),
+    [feedQuery.data],
+  );
   const showFeedLoading = feedQuery.isPending;
   const showFeedError = !!feedQuery.error && !showFeedLoading;
   const showFeedEmpty =
@@ -177,7 +185,7 @@ export default function UserProfileScreen() {
       <PostFeedGrid
         testID="user-profile-feed-grid"
         testIDPrefix="user-profile-feed"
-        posts={posts}
+        posts={gridPosts}
         onPostPress={handleOpenPostDetail}
         contentInsetAdjustmentBehavior="automatic"
         refreshing={feedQuery.isRefetching && !feedQuery.isPending}

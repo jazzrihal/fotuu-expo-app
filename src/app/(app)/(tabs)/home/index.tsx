@@ -45,6 +45,14 @@ export default function Home() {
   });
 
   const posts = feedQuery.data ?? [];
+  const gridPosts = useMemo(
+    () =>
+      (feedQuery.data ?? []).map((post) => ({
+        ...post,
+        isPinned: post.is_pinned_by_current_user,
+      })),
+    [feedQuery.data],
+  );
   const showFeedLoading =
     initializingLocation || (hasLocation && feedQuery.isPending);
   const error = feedQuery.error?.message ?? null;
@@ -198,7 +206,7 @@ export default function Home() {
       <PostFeedGrid
         testID="home-feed-grid"
         testIDPrefix="home-feed"
-        posts={posts}
+        posts={gridPosts}
         onPostPress={handleOpenPostDetail}
         refreshing={feedQuery.isRefetching && !feedQuery.isPending}
         onRefresh={() => {

@@ -31,13 +31,28 @@ env:
 - tapOn: "Like"
 - tapOn: "Unlike"
 - tapOn: "Pin"
-- tapOn: "Unpin"
-- swipe:
-    direction: UP
-    from:
-      id: "home-post-feed-pager"
-- assertNotVisible: "Friends"
-- assertNotVisible: "Profile"
 - back
 - assertVisible:
-    id: "home-feed"
+    id: "home-feed-grid"
+- assertVisible:
+    id: "pinned-post-thumbnail"
+- tapOn: "Profile"
+- assertVisible:
+    id: "profile-post-grid"
+- assertVisible:
+    id: "pinned-post-thumbnail"
+- tapOn:
+    point: "16%,32%"
+- assertVisible:
+    id: "profile-post-detail"
+- tapOn: "Unpin"
+- back
+- assertVisible:
+    id: "profile-post-grid"
+- assertNotVisible:
+    id: "pinned-post-thumbnail"
+- tapOn: "Home"
+- assertVisible:
+    id: "home-feed-grid"
+- assertNotVisible:
+    id: "pinned-post-thumbnail"

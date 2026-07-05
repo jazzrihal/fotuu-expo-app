@@ -183,7 +183,10 @@ export function usePostFeedPosts(feedSource: PostFeedSource | null) {
 function patchPostListCaches(
   queryClient: ReturnType<typeof useQueryClient>,
   postId: string,
-  patch: Partial<Pick<FeedPost, 'user_reaction' | 'is_pinned_by_current_user'>>,
+  patch: Partial<
+    Pick<FeedPost, 'user_reaction' | 'is_pinned_by_current_user'> &
+      Pick<ProfileFeedPost, 'is_pinned_to_current_profile'>
+  >,
 ) {
   const updater = (old: { id: string }[] | undefined) =>
     old?.map((post) => (post.id === postId ? { ...post, ...patch } : post));
@@ -266,6 +269,7 @@ export function useTogglePinMutation(postId: string | null) {
 
       patchPostListCaches(queryClient, postId, {
         is_pinned_by_current_user: nextPinned,
+        is_pinned_to_current_profile: nextPinned,
       });
 
       return { previousPost };

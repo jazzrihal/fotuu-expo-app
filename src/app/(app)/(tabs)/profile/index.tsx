@@ -65,6 +65,7 @@ export default function Profile() {
 
     const remoteItems: ProfileGridItem[] = (feedQuery.data ?? []).map((rp) => ({
       ...rp,
+      isPinned: rp.is_pinned_to_current_profile,
       _sortKey: new Date(rp.created_at).getTime(),
       _remotePost: rp,
     }));
