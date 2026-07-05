@@ -1,0 +1,32 @@
+appId: com.jazzrihal.Fotuu
+env:
+  E2E_EMAIL: ${E2E_EMAIL || "alice@example.com"}
+  E2E_PASSWORD: ${E2E_PASSWORD || "fotuu-local-dev"}
+---
+- runFlow:
+    file: ../auth/sign-in.yaml
+    env:
+      E2E_EMAIL: ${E2E_EMAIL}
+      E2E_PASSWORD: ${E2E_PASSWORD}
+- tapOn: "Home"
+- assertVisible:
+    id: "home-feed"
+- tapOn: "New post"
+- runFlow:
+    when:
+      visible: "Allow"
+    commands:
+      - tapOn: "Allow"
+- tapOn:
+    id: "camera-shutter-button"
+- assertVisible:
+    id: "new-post-preview"
+- tapOn:
+    id: "save-locally-button"
+- assertVisible:
+    id: "home-feed"
+- tapOn: "Profile"
+- assertVisible:
+    id: "profile-post-grid"
+- assertVisible:
+    id: "local-post-thumbnail"

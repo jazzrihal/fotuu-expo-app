@@ -41,7 +41,7 @@ export async function getDb(): Promise<SQLite.SQLiteDatabase> {
   return _db;
 }
 
-async function migrateDb(db: SQLite.SQLiteDatabase): Promise<void> {
+export async function migrateDb(db: SQLite.SQLiteDatabase): Promise<void> {
   await db.execAsync(`
     CREATE TABLE IF NOT EXISTS local_posts (
       id TEXT PRIMARY KEY,

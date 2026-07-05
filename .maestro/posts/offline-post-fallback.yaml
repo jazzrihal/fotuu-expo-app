@@ -1,0 +1,49 @@
+appId: com.jazzrihal.Fotuu
+# Airplane-mode toggling only works reliably on Android.
+# This flow is conditional on the Android platform.
+env:
+  E2E_EMAIL: ${E2E_EMAIL || "alice@example.com"}
+  E2E_PASSWORD: ${E2E_PASSWORD || "fotuu-local-dev"}
+---
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - runFlow:
+          file: ../auth/sign-in.yaml
+          env:
+            E2E_EMAIL: ${E2E_EMAIL}
+            E2E_PASSWORD: ${E2E_PASSWORD}
+      - setAirplaneMode:
+          enable: true
+      - tapOn: "Home"
+      - assertVisible:
+          id: "home-feed"
+      - tapOn: "New post"
+      - runFlow:
+          when:
+            visible: "Allow"
+          commands:
+            - tapOn: "Allow"
+      - tapOn:
+          id: "camera-shutter-button"
+      - assertVisible:
+          id: "new-post-preview"
+      - tapOn: "Post"
+      # Post fails silently and saves locally; expect navigation back to home
+      - assertVisible:
+          id: "home-feed"
+      - tapOn: "Profile"
+      - assertVisible:
+          id: "profile-post-grid"
+      - assertVisible:
+          id: "local-post-thumbnail"
+      - setAirplaneMode:
+          enable: false
+      # Wait for background sync to complete (up to 30s)
+      - runFlow:
+          when:
+            notVisible:
+              id: "local-post-thumbnail"
+            timeout: 30000
+          commands: []

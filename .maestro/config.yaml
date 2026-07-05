@@ -22,3 +22,5 @@ executionOrder:
     - open-profile-from-post
     - create-post
     - view-post-detail
+    - save-post-locally
+    - offline-post-fallback
