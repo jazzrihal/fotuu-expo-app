@@ -649,6 +649,25 @@ export type Database = {
           username: string
         }[]
       }
+      list_moments: {
+        Args: {
+          p_before_moment_id?: string
+          p_before_occurred_at?: string
+          p_limit?: number
+        }
+        Returns: {
+          address: string
+          city: string
+          country: string
+          created_at: string
+          id: string
+          latitude: number
+          longitude: number
+          occurred_at: string
+          region: string
+          updated_at: string
+        }[]
+      }
       list_outgoing_friend_requests: {
         Args: never
         Returns: {
