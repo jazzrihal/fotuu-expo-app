@@ -2,6 +2,7 @@ import { memo, useCallback, useMemo } from "react";
 import { useRouter } from "expo-router";
 import { PostDetailContent } from "@/components/post-detail-content";
 import { useAuth } from "@/context/auth";
+import { getLocalSyncStatus } from "@/lib/local-post-adapter";
 import {
   openUserProfile,
   type PostDetailTestIDPrefix,
@@ -67,6 +68,8 @@ export const PostFeedPage = memo(function PostFeedPage({
     });
   }, [isLocalOnly, post.author_id, post.display_name, post.username, router, session?.user.id]);
 
+  const localSyncStatus = isLocalOnly ? getLocalSyncStatus(post) : undefined;
+
   return (
     <PostDetailContent
       post={post}
@@ -81,6 +84,7 @@ export const PostFeedPage = memo(function PostFeedPage({
       actionsDisabled={actionsDisabled}
       actionError={actionError}
       isLocalOnly={isLocalOnly}
+      localSyncStatus={localSyncStatus}
     />
   );
 });

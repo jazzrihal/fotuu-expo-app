@@ -30,3 +30,9 @@ env:
     id: "profile-post-grid"
 - assertVisible:
     id: "local-post-thumbnail"
+- tapOn:
+    point: "16%,32%"
+- assertVisible:
+    id: "profile-post-detail"
+- assertVisible:
+    id: "profile-post-detail-local-badge"

@@ -1,12 +1,22 @@
-import type { LocalPost } from '@/lib/post-db';
+import type { LocalPost, LocalPostStatus } from '@/lib/post-db';
 import type { PostDetailWithImage } from '@/queries/posts';
+
+export type LocalPostDetailWithImage = PostDetailWithImage & {
+  localSyncStatus: LocalPostStatus;
+};
+
+export function getLocalSyncStatus(
+  post: PostDetailWithImage,
+): LocalPostStatus | undefined {
+  return (post as LocalPostDetailWithImage).localSyncStatus;
+}
 
 /**
  * Adapts a locally-stored post to the shared PostDetailWithImage shape so it
  * can be rendered by PostFeedPager / PostFeedPage without any Supabase data.
  * Remote-only fields are filled with safe defaults.
  */
-export function localPostToDetail(lp: LocalPost): PostDetailWithImage {
+export function localPostToDetail(lp: LocalPost): LocalPostDetailWithImage {
   return {
     id: lp.id,
     author_id: lp.user_id,
@@ -32,5 +42,6 @@ export function localPostToDetail(lp: LocalPost): PostDetailWithImage {
     distance_meters: null,
     feed_score: null,
     time_delta_seconds: null,
-  } as unknown as PostDetailWithImage;
+    localSyncStatus: lp.status,
+  } as unknown as LocalPostDetailWithImage;
 }

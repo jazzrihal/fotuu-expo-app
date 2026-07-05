@@ -1,4 +1,4 @@
-import { StyleSheet, useWindowDimensions } from "react-native";
+import { StyleSheet, useWindowDimensions, View } from "react-native";
 import {
   Button,
   Column,
@@ -10,9 +10,11 @@ import {
   Text,
 } from "@expo/ui";
 import { Image } from "@/components/image";
+import { LocalPostSyncBadge } from "@/components/local-post-sync-badge";
 import { PostFeedIconButton } from "@/components/post-feed-icon-button";
 import { buildLocationLine, formatCapturedAtAgo } from "@/lib/post-display";
 import type { PostDetailTestIDPrefix } from "@/lib/navigation";
+import type { LocalPostStatus } from "@/lib/post-db";
 import type { PostDetailWithImage } from "@/queries/posts";
 import type { LocalPost } from "@/lib/post-manager";
 
@@ -40,6 +42,7 @@ type PostDetailContentProps = {
   localPost?: LocalPost | null;
   onUploadToCloud?: () => void;
   isLocalOnly?: boolean;
+  localSyncStatus?: LocalPostStatus;
 };
 
 const CAPTION_LINE_HEIGHT = 22;
@@ -61,6 +64,7 @@ export function PostDetailContent({
   localPost,
   onUploadToCloud,
   isLocalOnly = false,
+  localSyncStatus,
 }: PostDetailContentProps) {
   const { width } = useWindowDimensions();
 
@@ -142,12 +146,20 @@ export function PostDetailContent({
     <Host testID={`${testIDPrefix}-detail`} style={{ height: pageHeight }}>
       <ScrollView showsIndicators={false} style={{ height: pageHeight }}>
         <RNHostView matchContents>
-          <Image
-            resizeOnTap
-            testID={`${testIDPrefix}-detail-image`}
-            source={post.imageUrl ? { uri: post.imageUrl } : undefined}
-            style={{ width, height: imageHeight }}
-          />
+          <View style={{ width, height: imageHeight }}>
+            <Image
+              resizeOnTap
+              testID={`${testIDPrefix}-detail-image`}
+              source={post.imageUrl ? { uri: post.imageUrl } : undefined}
+              style={{ width, height: imageHeight }}
+            />
+            {isLocalOnly && localSyncStatus ? (
+              <LocalPostSyncBadge
+                testID={`${testIDPrefix}-detail-local-badge`}
+                syncStatus={localSyncStatus}
+              />
+            ) : null}
+          </View>
         </RNHostView>
         {metadataBlock}
         {post.caption ? (
