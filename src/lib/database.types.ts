@@ -635,6 +635,10 @@ export type Database = {
           username: string
         }[]
       }
+      list_friends_posts_grouped: {
+        Args: { p_recent_within?: string }
+        Returns: Json
+      }
       list_incoming_friend_requests: {
         Args: never
         Returns: {
@@ -739,6 +743,7 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      remove_friend: { Args: { p_friend_id: string }; Returns: undefined }
       respond_to_friend_request: {
         Args: { p_accept: boolean; p_request_id: string }
         Returns: {
@@ -755,10 +760,6 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
-      }
-      remove_friend: {
-        Args: { p_friend_id: string }
-        Returns: undefined
       }
       search_profiles: {
         Args: { p_limit?: number; p_query: string }
