@@ -6,7 +6,7 @@ import { Empty } from '@/components/empty';
 import { FriendsFeedThumbnailSlot } from '@/components/friends/friends-feed-thumbnail-slot';
 import { getFriendsFeedThumbnailRowHeight } from '@/components/friends/friends-feed-thumbnail-row';
 import { useAuth } from '@/context/auth';
-import { openUserProfile } from '@/lib/navigation';
+import { openPostDetail, openUserProfile } from '@/lib/navigation';
 import { flattenFriendsPostsGrouped } from '@/lib/posts';
 import { queryKeys } from '@/queries/keys';
 import {
@@ -35,16 +35,12 @@ export function FriendsFeedTab() {
 
   const handleOpenPostDetail = useCallback(
     (post: FriendsPostWithImage) => {
-      router.push({
-        pathname: '/(app)/post/[id]',
-        params: {
-          id: post.id,
-          testIDPrefix: 'friends-post',
-          localFeed: JSON.stringify(flattenedPosts),
-        },
+      openPostDetail(router, post, {
+        testIDPrefix: 'friends-post',
+        feedSource: { type: 'friends' },
       });
     },
-    [router, flattenedPosts],
+    [router],
   );
 
   const handleOpenProfile = useCallback(

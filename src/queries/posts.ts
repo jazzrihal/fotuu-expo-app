@@ -7,6 +7,7 @@ import {
 import {
   createPost,
   enrichGroupedPost,
+  flattenFriendsPostsGrouped,
   getPost,
   getPostImageUrls,
   getPostViewerEngagement,
@@ -147,6 +148,7 @@ export function usePostQuery(
 
 export function usePostFeedPosts(feedSource: PostFeedSource | null) {
   const homeEnabled = feedSource?.type === 'home';
+  const friendsEnabled = feedSource?.type === 'friends';
   const profileEnabled =
     feedSource?.type === 'profile' || feedSource?.type === 'user';
   const profileUserId =
@@ -167,6 +169,8 @@ export function usePostFeedPosts(feedSource: PostFeedSource | null) {
     enabled: profileEnabled,
   });
 
+  const friendsQuery = useFriendsPostsQuery();
+
   if (homeEnabled) {
     return {
       posts: homeQuery.data ?? [],
@@ -184,6 +188,16 @@ export function usePostFeedPosts(feedSource: PostFeedSource | null) {
       error: profileQuery.error,
       refetch: profileQuery.refetch,
       isRefetching: profileQuery.isRefetching,
+    };
+  }
+
+  if (friendsEnabled) {
+    return {
+      posts: flattenFriendsPostsGrouped(friendsQuery.data?.groups ?? []),
+      isPending: friendsQuery.isPending,
+      error: friendsQuery.error,
+      refetch: friendsQuery.refetch,
+      isRefetching: friendsQuery.isRefetching,
     };
   }
 

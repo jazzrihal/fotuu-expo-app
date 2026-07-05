@@ -9,6 +9,7 @@ export type PostDetailTestIDPrefix =
 
 export type PostFeedSource =
   | { type: 'home'; at: string; latitude: number; longitude: number }
+  | { type: 'friends' }
   | { type: 'profile'; userId: string }
   | { type: 'user'; userId: string };
 
@@ -46,6 +47,9 @@ export function parsePostFeedSource(
       typeof parsed.latitude === 'number' &&
       typeof parsed.longitude === 'number'
     ) {
+      return parsed;
+    }
+    if (parsed.type === 'friends') {
       return parsed;
     }
     if (
