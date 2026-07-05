@@ -1,25 +1,17 @@
 import * as FileSystem from 'expo-file-system/legacy';
+import { randomUUID } from 'expo-crypto';
 import type { SQLiteDatabase } from 'expo-sqlite';
 import {
   deleteLocalPostRow,
-  deleteOutboxEntry,
+  deleteOutboxByLocalPostId,
   getDb,
+  getLocalImageUri,
   getLocalPostsByUser,
   insertLocalPost,
   insertOutboxEntry,
   updateLocalPostStatus,
   type LocalPost,
 } from '@/lib/post-db';
-
-function randomUuid(): string {
-  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
-    return crypto.randomUUID();
-  }
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
-    const r = (Math.random() * 16) | 0;
-    return (c === 'x' ? r : (r & 0x3) | 0x8).toString(16);
-  });
-}
 
 const LOCAL_POSTS_DIR = `${FileSystem.documentDirectory}local-posts/`;
 
@@ -32,9 +24,19 @@ async function ensureLocalPostsDir(): Promise<void> {
 
 async function copyImageToDocuments(sourceUri: string): Promise<string> {
   await ensureLocalPostsDir();
-  const destPath = `${LOCAL_POSTS_DIR}${randomUuid()}.jpg`;
+  const destPath = `${LOCAL_POSTS_DIR}${randomUUID()}.jpg`;
   await FileSystem.copyAsync({ from: sourceUri, to: destPath });
   return destPath;
+}
+
+async function deleteLocalImage(db: SQLiteDatabase, localPostId: string): Promise<void> {
+  const uri = await getLocalImageUri(db, localPostId);
+  if (uri) {
+    const info = await FileSystem.getInfoAsync(uri);
+    if (info.exists) {
+      await FileSystem.deleteAsync(uri, { idempotent: true });
+    }
+  }
 }
 
 export type SaveLocalPostInput = {
@@ -59,7 +61,7 @@ export async function saveLocalPost(input: SaveLocalPostInput): Promise<SaveLoca
   try {
     const db = await getDb();
     const persistedUri = await copyImageToDocuments(input.localImageUri);
-    const id = randomUuid();
+    const id = randomUUID();
     const post: Omit<LocalPost, 'created_at' | 'updated_at'> = {
       id,
       user_id: input.userId,
@@ -74,8 +76,8 @@ export async function saveLocalPost(input: SaveLocalPostInput): Promise<SaveLoca
       storage_object_path: null,
       error_message: null,
     };
-    await insertLocalPost(db, post);
     const now = Date.now();
+    await insertLocalPost(db, post, now);
     return { localPost: { ...post, created_at: now, updated_at: now }, error: null };
   } catch (err) {
     return { localPost: null, error: err instanceof Error ? err.message : 'Failed to save post' };
@@ -88,7 +90,7 @@ export async function queuePostForUpload(
 ): Promise<{ error: string | null }> {
   try {
     const resolvedDb = db ?? (await getDb());
-    const entryId = randomUuid();
+    const entryId = randomUUID();
     await insertOutboxEntry(resolvedDb, {
       id: entryId,
       local_post_id: localPostId,
@@ -120,18 +122,8 @@ export async function markSynced(
       remote_post_id: remotePostId,
       storage_object_path: storageObjectPath,
     });
-    await deleteOutboxEntry(db, localPostId);
-
-    const post = await db.getFirstAsync<{ local_image_uri: string }>(
-      'SELECT local_image_uri FROM local_posts WHERE id = ?',
-      localPostId,
-    );
-    if (post?.local_image_uri) {
-      const info = await FileSystem.getInfoAsync(post.local_image_uri);
-      if (info.exists) {
-        await FileSystem.deleteAsync(post.local_image_uri, { idempotent: true });
-      }
-    }
+    await deleteOutboxByLocalPostId(db, localPostId);
+    await deleteLocalImage(db, localPostId);
     return { error: null };
   } catch (err) {
     return { error: err instanceof Error ? err.message : 'Failed to mark post synced' };
@@ -141,16 +133,7 @@ export async function markSynced(
 export async function deleteLocalPost(localPostId: string): Promise<{ error: string | null }> {
   try {
     const db = await getDb();
-    const post = await db.getFirstAsync<{ local_image_uri: string }>(
-      'SELECT local_image_uri FROM local_posts WHERE id = ?',
-      localPostId,
-    );
-    if (post?.local_image_uri) {
-      const info = await FileSystem.getInfoAsync(post.local_image_uri);
-      if (info.exists) {
-        await FileSystem.deleteAsync(post.local_image_uri, { idempotent: true });
-      }
-    }
+    await deleteLocalImage(db, localPostId);
     await deleteLocalPostRow(db, localPostId);
     return { error: null };
   } catch (err) {

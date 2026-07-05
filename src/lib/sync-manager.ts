@@ -1,6 +1,13 @@
 import { supabase } from '@/lib/supabase';
 import { createPost } from '@/lib/posts';
-import { getDb, getDueOutboxEntries, updateLocalPostStatus, updateOutboxEntry, deleteOutboxEntry } from '@/lib/post-db';
+import {
+  getDb,
+  getDueOutboxEntries,
+  getLocalPostById,
+  updateLocalPostStatus,
+  updateOutboxEntry,
+  deleteOutboxEntry,
+} from '@/lib/post-db';
 import { markSynced } from '@/lib/post-manager';
 import { startUpload } from '../../modules/background-upload/src';
 
@@ -26,6 +33,12 @@ export function addSyncListener(fn: SyncManagerListener): () => void {
   return () => listeners.delete(fn);
 }
 
+/** @internal Reset mutex and listeners between test cases. */
+export function resetSyncState(): void {
+  running = false;
+  listeners.clear();
+}
+
 function notifyListeners() {
   for (const fn of listeners) fn();
 }
@@ -39,17 +52,7 @@ export async function runSync(): Promise<void> {
     const entries = await getDueOutboxEntries(db);
 
     for (const entry of entries) {
-      const post = await db.getFirstAsync<{
-        id: string;
-        user_id: string;
-        local_image_uri: string;
-        captured_at: string;
-        caption: string | null;
-        privacy_scope: string;
-        latitude: number | null;
-        longitude: number | null;
-        status: string;
-      }>('SELECT * FROM local_posts WHERE id = ?', entry.local_post_id);
+      const post = await getLocalPostById(db, entry.local_post_id);
 
       if (!post) {
         await deleteOutboxEntry(db, entry.id);
@@ -112,12 +115,10 @@ export async function runSync(): Promise<void> {
         const nextAttempt = entry.attempt_count + 1;
 
         if (nextAttempt >= MAX_ATTEMPTS) {
+          // Max retries exceeded — mark as permanently failed and remove from outbox
+          // so getDueOutboxEntries never picks it up again.
           await updateLocalPostStatus(db, post.id, 'failed', { error_message: errorMessage });
-          await updateOutboxEntry(db, entry.id, {
-            attempt_count: nextAttempt,
-            next_attempt_at: Date.now() + backoffMs(nextAttempt),
-            last_error: errorMessage,
-          });
+          await deleteOutboxEntry(db, entry.id);
         } else {
           await updateLocalPostStatus(db, post.id, 'queued', { error_message: errorMessage });
           await updateOutboxEntry(db, entry.id, {

@@ -22,7 +22,7 @@ env:
 - assertVisible:
     id: "new-post-preview"
 - tapOn:
-    id: "save-locally-button"
+    label: "Save for later"
 - assertVisible:
     id: "home-feed"
 - tapOn: "Profile"

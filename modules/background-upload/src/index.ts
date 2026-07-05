@@ -1,3 +1,14 @@
+/**
+ * Native background upload module.
+ *
+ * Platform support:
+ *   iOS   — NSURLSession-based upload that persists when the app is backgrounded
+ *            (see expo-module.config.json: "platforms": ["apple"]).
+ *   Android — No native module. startUpload() throws, and sync-manager.ts catches
+ *             the error and falls back to an in-process JS/XHR upload via the
+ *             standard Supabase Storage client. Background persistence is not
+ *             available on Android until a Kotlin module is added.
+ */
 import BackgroundUploadModule from './BackgroundUploadModule';
 
 export type UploadProgressEvent = { uploadId: string; progress: number };

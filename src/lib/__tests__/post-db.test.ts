@@ -1,8 +1,24 @@
 /**
  * Unit tests for post-db.ts CRUD helpers using an in-memory SQLite mock.
  *
- * The mock DB is a tiny SQL-like engine backed by plain JS Maps.
+ * The mock DB is a minimal SQL-like engine backed by plain JS Maps.
  * It only implements the subset of SQLite operations that post-db.ts uses.
+ *
+ * SUPPORTED SQL PATTERNS (canary: add a test if you add a new query to post-db.ts):
+ *   - PRAGMA …                                     → no-op
+ *   - CREATE TABLE IF NOT EXISTS …                 → no-op (tables pre-created)
+ *   - CREATE INDEX IF NOT EXISTS …                 → no-op
+ *   - INSERT INTO <table> (cols) VALUES (?)         → plain insert
+ *   - INSERT OR IGNORE INTO upload_outbox (cols) … → deduplicates on idempotency_key
+ *   - SELECT * FROM <table> WHERE id = ?            → single row by id
+ *   - SELECT * FROM local_posts WHERE user_id = ? AND status != 'synced' ORDER BY created_at DESC
+ *   - SELECT local_image_uri FROM local_posts WHERE id = ?
+ *   - SELECT o.* FROM upload_outbox o JOIN local_posts p ON … WHERE … AND p.status IN (…)
+ *   - UPDATE local_posts SET status=?, remote_post_id=COALESCE(?,…), … WHERE id=?
+ *   - UPDATE upload_outbox SET attempt_count=?, next_attempt_at=?, last_error=? WHERE id=?
+ *   - DELETE FROM upload_outbox WHERE local_post_id = ?
+ *   - DELETE FROM upload_outbox WHERE id = ?
+ *   - DELETE FROM local_posts WHERE id = ?
  */
 
 import {
@@ -16,14 +32,11 @@ import {
   getDueOutboxEntries,
   updateOutboxEntry,
   deleteOutboxEntry,
+  deleteOutboxByLocalPostId,
+  getLocalImageUri,
   type LocalPost,
   type UploadOutboxEntry,
 } from '../post-db';
-
-// ---------------------------------------------------------------------------
-// Re-export migrateDb so we can call it directly (it's not exported by default).
-// We access it via the named export below.
-// ---------------------------------------------------------------------------
 
 // ---------------------------------------------------------------------------
 // Minimal in-memory SQLite stub
@@ -37,12 +50,6 @@ function buildInMemoryDb() {
     upload_outbox: [],
   };
 
-  /**
-   * Extremely minimal SQL parser covering only the statements emitted by post-db.ts.
-   * Supports: CREATE TABLE IF NOT EXISTS, CREATE INDEX IF NOT EXISTS,
-   *           INSERT INTO/INSERT OR IGNORE INTO, SELECT *, UPDATE, DELETE FROM,
-   *           PRAGMA (no-op), JOIN (for getDueOutboxEntries).
-   */
   function exec(sql: string, params: unknown[] = []): Row[] {
     const trimmed = sql.trim().replace(/\s+/g, ' ');
 
@@ -95,9 +102,16 @@ function buildInMemoryDb() {
         if (!p) return false;
         return (
           (o.next_attempt_at as number) <= now &&
-          ['queued', 'uploading', 'failed'].includes(p.status as string)
+          // Mirror the production query: only 'queued' and 'uploading' (not 'failed')
+          ['queued', 'uploading'].includes(p.status as string)
         );
       });
+    }
+
+    // SELECT local_image_uri FROM local_posts WHERE id = ?
+    if (/^SELECT local_image_uri FROM local_posts WHERE id = \?/i.test(trimmed)) {
+      const row = tables.local_posts.find((r) => r.id === params[0]);
+      return row ? [{ local_image_uri: row.local_image_uri }] : [];
     }
 
     // SELECT * FROM <table> WHERE ...
@@ -120,12 +134,6 @@ function buildInMemoryDb() {
       }
 
       return rows;
-    }
-
-    // SELECT local_image_uri FROM local_posts WHERE id = ?
-    if (/^SELECT local_image_uri FROM local_posts WHERE id = \?/i.test(trimmed)) {
-      const row = tables.local_posts.find((r) => r.id === params[0]);
-      return row ? [{ local_image_uri: row.local_image_uri }] : [];
     }
 
     // UPDATE local_posts SET ...
@@ -183,7 +191,7 @@ function buildInMemoryDb() {
       return [];
     }
 
-    throw new Error(`Unhandled SQL: ${sql.substring(0, 80)}`);
+    throw new Error(`Unhandled SQL (add a case to the mock): ${sql.substring(0, 80)}`);
   }
 
   return {
@@ -283,6 +291,14 @@ describe('post-db', () => {
       const posts = await getLocalPostsByUser(db as never, 'user-a');
       expect(posts).toHaveLength(0);
     });
+
+    it('stores the provided timestamp instead of generating its own', async () => {
+      const fixedNow = 1_700_000_000_000;
+      await insertLocalPost(db as never, makePost(), fixedNow);
+      const post = await getLocalPostById(db as never, 'post-1');
+      expect(post!.created_at).toBe(fixedNow);
+      expect(post!.updated_at).toBe(fixedNow);
+    });
   });
 
   // -------------------------------------------------------------------------
@@ -299,6 +315,22 @@ describe('post-db', () => {
     it('returns null for a missing id', async () => {
       const post = await getLocalPostById(db as never, 'no-such-id');
       expect(post).toBeNull();
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // getLocalImageUri
+  // -------------------------------------------------------------------------
+  describe('getLocalImageUri', () => {
+    it('returns the local_image_uri for an existing post', async () => {
+      await insertLocalPost(db as never, makePost({ local_image_uri: 'file:///a.jpg' }));
+      const uri = await getLocalImageUri(db as never, 'post-1');
+      expect(uri).toBe('file:///a.jpg');
+    });
+
+    it('returns null for a missing post', async () => {
+      const uri = await getLocalImageUri(db as never, 'no-such-id');
+      expect(uri).toBeNull();
     });
   });
 
@@ -392,8 +424,16 @@ describe('post-db', () => {
     });
 
     it('does not return entries for posts with status local', async () => {
-      // Override the post to have status 'local'
       db._tables.local_posts[0].status = 'local';
+      await insertOutboxEntry(db as never, makeOutboxEntry());
+      const entries = await getDueOutboxEntries(db as never);
+      expect(entries).toHaveLength(0);
+    });
+
+    it('does not return entries for posts with status failed (MAX_ATTEMPTS guard)', async () => {
+      // After MAX_ATTEMPTS the post is marked 'failed' and the outbox entry is deleted;
+      // even if an entry remains it must not be retried.
+      db._tables.local_posts[0].status = 'failed';
       await insertOutboxEntry(db as never, makeOutboxEntry());
       const entries = await getDueOutboxEntries(db as never);
       expect(entries).toHaveLength(0);
@@ -424,15 +464,30 @@ describe('post-db', () => {
   // deleteOutboxEntry
   // -------------------------------------------------------------------------
   describe('deleteOutboxEntry', () => {
-    it('removes the outbox entry', async () => {
+    it('removes the outbox entry by outbox entry id', async () => {
       await insertLocalPost(db as never, makePost());
       await insertOutboxEntry(db as never, makeOutboxEntry());
       await deleteOutboxEntry(db as never, 'entry-1');
       expect(db._tables.upload_outbox).toHaveLength(0);
     });
   });
+
+  // -------------------------------------------------------------------------
+  // deleteOutboxByLocalPostId
+  // -------------------------------------------------------------------------
+  describe('deleteOutboxByLocalPostId', () => {
+    it('removes the outbox entry by local_post_id', async () => {
+      await insertLocalPost(db as never, makePost());
+      await insertOutboxEntry(db as never, makeOutboxEntry());
+      await deleteOutboxByLocalPostId(db as never, 'post-1');
+      expect(db._tables.upload_outbox).toHaveLength(0);
+    });
+
+    it('is a no-op when no entry exists for the given local_post_id', async () => {
+      await deleteOutboxByLocalPostId(db as never, 'no-such-post');
+      expect(db._tables.upload_outbox).toHaveLength(0);
+    });
+  });
 });
 
-// Make migrateDb accessible for tests – it's used above via named import.
-// This line is intentionally blank to satisfy the linter (no unused import).
 export {};

@@ -13,6 +13,13 @@ import {
 } from '../post-manager';
 
 // ---------------------------------------------------------------------------
+// Mock expo-crypto so randomUUID returns a deterministic value in tests
+// ---------------------------------------------------------------------------
+jest.mock('expo-crypto', () => ({
+  randomUUID: jest.fn(() => 'test-uuid'),
+}));
+
+// ---------------------------------------------------------------------------
 // Mock post-db so we control DB behaviour per test
 // ---------------------------------------------------------------------------
 jest.mock('../post-db', () => ({
@@ -21,8 +28,9 @@ jest.mock('../post-db', () => ({
   insertOutboxEntry: jest.fn(),
   updateLocalPostStatus: jest.fn(),
   getLocalPostsByUser: jest.fn(),
-  deleteOutboxEntry: jest.fn(),
+  deleteOutboxByLocalPostId: jest.fn(),
   deleteLocalPostRow: jest.fn(),
+  getLocalImageUri: jest.fn(),
 }));
 
 import * as PostDb from '../post-db';
@@ -34,10 +42,8 @@ const mockFileSystem = FileSystem as jest.Mocked<typeof FileSystem>;
 const mockPostDb = PostDb as jest.Mocked<typeof PostDb>;
 
 // Minimal stub DB returned by getDb
-function makeDbStub(imageUri = 'file:///documents/local-posts/img.jpg') {
-  return {
-    getFirstAsync: jest.fn(async () => ({ local_image_uri: imageUri })),
-  };
+function makeDbStub() {
+  return {};
 }
 
 // ---------------------------------------------------------------------------
@@ -82,6 +88,29 @@ describe('post-manager', () => {
       expect(mockPostDb.insertLocalPost).toHaveBeenCalledTimes(1);
     });
 
+    it('passes a consistent timestamp to insertLocalPost and returns it on the result', async () => {
+      mockFileSystem.getInfoAsync.mockResolvedValue({ exists: false, isDirectory: false, uri: '' });
+      mockFileSystem.makeDirectoryAsync.mockResolvedValue(undefined);
+      mockFileSystem.copyAsync.mockResolvedValue(undefined);
+      const dbStub = makeDbStub();
+      (mockPostDb.getDb as jest.Mock).mockResolvedValue(dbStub);
+      (mockPostDb.insertLocalPost as jest.Mock).mockResolvedValue(undefined);
+
+      const before = Date.now();
+      const result = await saveLocalPost(INPUT);
+      const after = Date.now();
+
+      expect(result.error).toBeNull();
+      const ts = result.localPost!.created_at;
+      expect(ts).toBeGreaterThanOrEqual(before);
+      expect(ts).toBeLessThanOrEqual(after);
+      expect(result.localPost!.updated_at).toBe(ts);
+
+      // Verify the same timestamp was passed into insertLocalPost
+      const insertCall = (mockPostDb.insertLocalPost as jest.Mock).mock.calls[0];
+      expect(insertCall[2]).toBe(ts);
+    });
+
     it('returns error when FileSystem.copyAsync throws', async () => {
       mockFileSystem.getInfoAsync.mockResolvedValue({ exists: true, isDirectory: false, uri: '', size: 0, modificationTime: 0, md5: undefined });
       mockFileSystem.copyAsync.mockRejectedValue(new Error('disk full'));
@@ -124,8 +153,6 @@ describe('post-manager', () => {
     });
 
     it('second call with same localPostId is a no-op (idempotency_key dedup)', async () => {
-      // The second insertOutboxEntry silently ignores duplicate keys (INSERT OR IGNORE).
-      // queuePostForUpload delegates to post-db which handles dedup; both calls succeed.
       const dbStub = makeDbStub();
       (mockPostDb.getDb as jest.Mock).mockResolvedValue(dbStub);
       (mockPostDb.insertOutboxEntry as jest.Mock).mockResolvedValue(undefined);
@@ -161,12 +188,13 @@ describe('post-manager', () => {
   // markSynced
   // -------------------------------------------------------------------------
   describe('markSynced', () => {
-    it('updates status, deletes outbox entry, deletes local image file', async () => {
+    it('updates status, deletes outbox entry by local_post_id, then deletes local image file', async () => {
       const imageUri = 'file:///documents/local-posts/img.jpg';
-      const dbStub = makeDbStub(imageUri);
+      const dbStub = makeDbStub();
       (mockPostDb.getDb as jest.Mock).mockResolvedValue(dbStub);
       (mockPostDb.updateLocalPostStatus as jest.Mock).mockResolvedValue(undefined);
-      (mockPostDb.deleteOutboxEntry as jest.Mock).mockResolvedValue(undefined);
+      (mockPostDb.deleteOutboxByLocalPostId as jest.Mock).mockResolvedValue(undefined);
+      (mockPostDb.getLocalImageUri as jest.Mock).mockResolvedValue(imageUri);
       mockFileSystem.getInfoAsync.mockResolvedValue({ exists: true, isDirectory: false, uri: imageUri, size: 100, modificationTime: 0 });
       mockFileSystem.deleteAsync.mockResolvedValue(undefined);
 
@@ -179,20 +207,37 @@ describe('post-manager', () => {
         'synced',
         expect.objectContaining({ remote_post_id: 'remote-1' }),
       );
+      // Must use deleteOutboxByLocalPostId (not deleteOutboxEntry) so the
+      // correct row is removed even when outbox id ≠ local post id.
+      expect(mockPostDb.deleteOutboxByLocalPostId).toHaveBeenCalledWith(dbStub, 'post-1');
       expect(mockFileSystem.deleteAsync).toHaveBeenCalledWith(imageUri, { idempotent: true });
     });
 
     it('does not throw when image has already been deleted', async () => {
-      const imageUri = 'file:///documents/local-posts/img.jpg';
-      const dbStub = makeDbStub(imageUri);
+      const dbStub = makeDbStub();
       (mockPostDb.getDb as jest.Mock).mockResolvedValue(dbStub);
       (mockPostDb.updateLocalPostStatus as jest.Mock).mockResolvedValue(undefined);
-      (mockPostDb.deleteOutboxEntry as jest.Mock).mockResolvedValue(undefined);
+      (mockPostDb.deleteOutboxByLocalPostId as jest.Mock).mockResolvedValue(undefined);
+      (mockPostDb.getLocalImageUri as jest.Mock).mockResolvedValue('file:///documents/local-posts/img.jpg');
       mockFileSystem.getInfoAsync.mockResolvedValue({ exists: false, isDirectory: false, uri: '' });
 
       const result = await markSynced('post-1', 'remote-1', 'user-a/post-1.jpg');
 
       expect(result.error).toBeNull();
+      expect(mockFileSystem.deleteAsync).not.toHaveBeenCalled();
+    });
+
+    it('does not attempt file deletion when post has no local image', async () => {
+      const dbStub = makeDbStub();
+      (mockPostDb.getDb as jest.Mock).mockResolvedValue(dbStub);
+      (mockPostDb.updateLocalPostStatus as jest.Mock).mockResolvedValue(undefined);
+      (mockPostDb.deleteOutboxByLocalPostId as jest.Mock).mockResolvedValue(undefined);
+      (mockPostDb.getLocalImageUri as jest.Mock).mockResolvedValue(null);
+
+      const result = await markSynced('post-1', 'remote-1', 'user-a/post-1.jpg');
+
+      expect(result.error).toBeNull();
+      expect(mockFileSystem.getInfoAsync).not.toHaveBeenCalled();
       expect(mockFileSystem.deleteAsync).not.toHaveBeenCalled();
     });
   });
@@ -203,9 +248,10 @@ describe('post-manager', () => {
   describe('deleteLocalPost', () => {
     it('deletes image file and DB row', async () => {
       const imageUri = 'file:///documents/local-posts/img.jpg';
-      const dbStub = makeDbStub(imageUri);
+      const dbStub = makeDbStub();
       (mockPostDb.getDb as jest.Mock).mockResolvedValue(dbStub);
       (mockPostDb.deleteLocalPostRow as jest.Mock).mockResolvedValue(undefined);
+      (mockPostDb.getLocalImageUri as jest.Mock).mockResolvedValue(imageUri);
       mockFileSystem.getInfoAsync.mockResolvedValue({ exists: true, isDirectory: false, uri: imageUri, size: 100, modificationTime: 0 });
       mockFileSystem.deleteAsync.mockResolvedValue(undefined);
 
@@ -216,10 +262,11 @@ describe('post-manager', () => {
       expect(mockPostDb.deleteLocalPostRow).toHaveBeenCalledWith(dbStub, 'post-1');
     });
 
-    it('does not throw when post does not exist', async () => {
-      const dbStub = { getFirstAsync: jest.fn(async () => null) };
+    it('does not throw when post has no local image', async () => {
+      const dbStub = makeDbStub();
       (mockPostDb.getDb as jest.Mock).mockResolvedValue(dbStub);
       (mockPostDb.deleteLocalPostRow as jest.Mock).mockResolvedValue(undefined);
+      (mockPostDb.getLocalImageUri as jest.Mock).mockResolvedValue(null);
 
       const result = await deleteLocalPost('no-such-post');
 

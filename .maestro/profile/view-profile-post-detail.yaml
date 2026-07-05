@@ -15,7 +15,7 @@ env:
 - runFlow:
     when:
       visible:
-        id: "profile-feed-grid"
+        id: "profile-post-grid"
     commands:
       - tapOn:
           point: "16%,32%"
@@ -34,4 +34,4 @@ env:
       - back
       - assertVisible: "Sign out"
       - assertVisible:
-          id: "profile-feed-grid"
+          id: "profile-post-grid"

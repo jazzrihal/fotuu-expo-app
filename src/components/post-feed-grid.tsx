@@ -80,7 +80,7 @@ export function PostFeedGrid<T extends PostGridItem>({
             contentFit="cover"
           />
           {item.isLocal ? (
-            <View style={styles.offlineBadge} pointerEvents="none">
+            <View testID="local-post-thumbnail" style={styles.offlineBadge} pointerEvents="none">
               <SymbolView
                 name={item.syncStatus === 'uploading' ? 'icloud.and.arrow.up' : 'icloud.slash'}
                 size={18}

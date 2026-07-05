@@ -124,7 +124,7 @@ export default function Profile() {
 
     return (
       <PostFeedGrid
-        testID="profile-feed-grid"
+        testID="profile-post-grid"
         testIDPrefix="profile-feed"
         posts={mergedPosts}
         onPostPress={handleOpenPostDetail}

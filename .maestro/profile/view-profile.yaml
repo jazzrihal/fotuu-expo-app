@@ -13,10 +13,10 @@ env:
 - runFlow:
     when:
       visible:
-        id: "profile-feed-grid"
+        id: "profile-post-grid"
     commands:
       - assertVisible:
-          id: "profile-feed-grid"
+          id: "profile-post-grid"
 - runFlow:
     when:
       visible:

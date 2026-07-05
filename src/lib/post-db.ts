@@ -81,8 +81,8 @@ export async function migrateDb(db: SQLite.SQLiteDatabase): Promise<void> {
 export async function insertLocalPost(
   db: SQLite.SQLiteDatabase,
   post: Omit<LocalPost, 'created_at' | 'updated_at'>,
+  now = Date.now(),
 ): Promise<void> {
-  const now = Date.now();
   await db.runAsync(
     `INSERT INTO local_posts
        (id, user_id, local_image_uri, captured_at, caption, privacy_scope,
@@ -186,7 +186,7 @@ export async function getDueOutboxEntries(
   return db.getAllAsync<UploadOutboxEntry>(
     `SELECT o.* FROM upload_outbox o
      JOIN local_posts p ON p.id = o.local_post_id
-     WHERE o.next_attempt_at <= ? AND p.status IN ('queued', 'uploading', 'failed')
+     WHERE o.next_attempt_at <= ? AND p.status IN ('queued', 'uploading')
      ORDER BY o.created_at ASC`,
     Date.now(),
   );
@@ -213,4 +213,22 @@ export async function deleteOutboxEntry(
   id: string,
 ): Promise<void> {
   await db.runAsync('DELETE FROM upload_outbox WHERE id = ?', id);
+}
+
+export async function deleteOutboxByLocalPostId(
+  db: SQLite.SQLiteDatabase,
+  localPostId: string,
+): Promise<void> {
+  await db.runAsync('DELETE FROM upload_outbox WHERE local_post_id = ?', localPostId);
+}
+
+export async function getLocalImageUri(
+  db: SQLite.SQLiteDatabase,
+  localPostId: string,
+): Promise<string | null> {
+  const row = await db.getFirstAsync<{ local_image_uri: string }>(
+    'SELECT local_image_uri FROM local_posts WHERE id = ?',
+    localPostId,
+  );
+  return row?.local_image_uri ?? null;
 }
