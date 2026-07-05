@@ -6,6 +6,7 @@ import {
   View,
 } from 'react-native';
 import { Image } from '@/components/image';
+import { PinnedPostBadge } from '@/components/pinned-post-badge';
 import type { FriendsPostWithImage } from '@/queries/posts';
 
 /** Horizontal inset applied by FieldGroup.Section rows on web. */
@@ -36,6 +37,9 @@ export function getFriendsFeedAndroidListItemOffset(rowHeight: number): {
 }
 
 const GRID_GAP = 1;
+
+/** Clears rounded FieldGroup row corners (overflow: hidden on slot). */
+const FRIENDS_FEED_PIN_BADGE_INSET = { bottom: 18, right: 18 };
 
 function getFriendsFeedThumbnailLayout(postCount: number, screenWidth: number) {
   if (postCount === 0) {
@@ -118,6 +122,9 @@ export function FriendsFeedThumbnailRow({
               style={{ width: tileWidth, height: tileSize }}
               contentFit="cover"
             />
+            {post.is_pinned_by_current_user ? (
+              <PinnedPostBadge style={styles.pinnedBadge} />
+            ) : null}
           </Pressable>
         );
       })}
@@ -129,4 +136,5 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
   },
+  pinnedBadge: FRIENDS_FEED_PIN_BADGE_INSET,
 });
