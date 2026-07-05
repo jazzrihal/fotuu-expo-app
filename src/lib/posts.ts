@@ -10,6 +10,19 @@ export type ProfileFeedPost =
 export type FriendsPost =
   Database['public']['Functions']['list_friends_posts']['Returns'][number];
 
+export type FriendsGroupedPost = Omit<
+  FriendsPost,
+  'author_id' | 'display_name' | 'username'
+>;
+
+export type FriendsPostsGroup = {
+  author_id: string;
+  username: string;
+  display_name: string;
+  latest_captured_at: string;
+  posts: FriendsGroupedPost[];
+};
+
 export type PostDetail =
   Database['public']['Functions']['get_post']['Returns'][number];
 
@@ -157,18 +170,76 @@ export async function listFeedPosts(params: {
   return { data, error: rpcErrorMessage(error) };
 }
 
-export async function listFriendsPosts(params?: {
-  limit?: number;
-  beforeCreatedAt?: string;
-  beforePostId?: string;
-}): Promise<{ data: FriendsPost[] | null; error: string | null }> {
-  const { data, error } = await supabase.rpc('list_friends_posts', {
-    p_limit: params?.limit ?? 30,
-    p_before_created_at: params?.beforeCreatedAt,
-    p_before_post_id: params?.beforePostId,
+function isFriendsGroupedPost(value: unknown): value is FriendsGroupedPost {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    typeof (value as FriendsGroupedPost).id === 'string' &&
+    typeof (value as FriendsGroupedPost).storage_object_path === 'string'
+  );
+}
+
+function isFriendsPostsGroup(value: unknown): value is FriendsPostsGroup {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    typeof (value as FriendsPostsGroup).author_id === 'string' &&
+    typeof (value as FriendsPostsGroup).username === 'string' &&
+    typeof (value as FriendsPostsGroup).display_name === 'string' &&
+    Array.isArray((value as FriendsPostsGroup).posts) &&
+    (value as FriendsPostsGroup).posts.every(isFriendsGroupedPost)
+  );
+}
+
+function parseFriendsPostsGroups(data: unknown): FriendsPostsGroup[] | null {
+  if (!Array.isArray(data)) {
+    return null;
+  }
+
+  if (!data.every(isFriendsPostsGroup)) {
+    return null;
+  }
+
+  return data;
+}
+
+export function enrichGroupedPost(
+  group: Pick<FriendsPostsGroup, 'author_id' | 'display_name' | 'username'>,
+  post: FriendsGroupedPost,
+  imageUrl?: string,
+): FriendsPost & { imageUrl?: string } {
+  return {
+    ...post,
+    author_id: group.author_id,
+    display_name: group.display_name,
+    username: group.username,
+    imageUrl,
+  };
+}
+
+export function flattenFriendsPostsGrouped(
+  groups: Array<FriendsPostsGroup & { posts: Array<FriendsPost & { imageUrl?: string }> }>,
+): Array<FriendsPost & { imageUrl?: string }> {
+  return groups.flatMap((group) => group.posts);
+}
+
+export async function listFriendsPostsGrouped(params?: {
+  recentWithin?: string;
+}): Promise<{ data: FriendsPostsGroup[] | null; error: string | null }> {
+  const { data, error } = await supabase.rpc('list_friends_posts_grouped', {
+    p_recent_within: params?.recentWithin ?? '7 days',
   });
 
-  return { data, error: rpcErrorMessage(error) };
+  if (error) {
+    return { data: null, error: rpcErrorMessage(error) };
+  }
+
+  const groups = parseFriendsPostsGroups(data);
+  if (!groups) {
+    return { data: null, error: 'Invalid friends feed response' };
+  }
+
+  return { data: groups, error: null };
 }
 
 export async function getPostImageUrls(

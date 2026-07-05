@@ -13,14 +13,19 @@ env:
 - runFlow:
     when:
       visible:
-        id: "friends-feed-pager"
+        id: "friends-feed"
     commands:
+      - tapOn:
+          point: "15%,40%"
       - assertVisible:
           id: "friends-post-detail"
       - tapOn:
           id: "friends-post-detail-author"
       - assertVisible:
           id: "user-profile"
+      - back
+      - assertVisible:
+          id: "friends-post-detail"
       - back
       - assertVisible:
           id: "friends-feed"

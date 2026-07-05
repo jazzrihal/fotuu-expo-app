@@ -6,12 +6,13 @@ import {
 } from '@tanstack/react-query';
 import {
   createPost,
+  enrichGroupedPost,
   getPost,
   getPostImageUrls,
   getPostViewerEngagement,
   likePost,
   listFeedPosts,
-  listFriendsPosts,
+  listFriendsPostsGrouped,
   listProfileFeedPosts,
   pinPost,
   unlikePost,
@@ -20,6 +21,7 @@ import {
   type CreatePostInput,
   type FeedPost,
   type FriendsPost,
+  type FriendsPostsGroup,
   type PostDetail,
   type ProfileFeedPost,
 } from '@/lib/posts';
@@ -30,6 +32,9 @@ import { queryKeys } from '@/queries/keys';
 export type FeedPostWithImage = FeedPost & { imageUrl?: string };
 export type ProfileFeedPostWithImage = ProfileFeedPost & { imageUrl?: string };
 export type FriendsPostWithImage = FriendsPost & { imageUrl?: string };
+export type FriendsPostsGroupedWithImages = {
+  groups: Array<FriendsPostsGroup & { posts: FriendsPostWithImage[] }>;
+};
 export type PostDetailWithImage =
   (FeedPost | PostDetail | ProfileFeedPost | FriendsPost) & { imageUrl?: string };
 
@@ -72,15 +77,20 @@ async function fetchProfileFeedWithImages(
   }));
 }
 
-async function fetchFriendsPostsWithImages(): Promise<FriendsPostWithImage[]> {
-  const posts = assertOk(await listFriendsPosts());
-  const urls = assertOk(
-    await getPostImageUrls(posts.map((p) => p.storage_object_path)),
+async function fetchFriendsPostsGroupedWithImages(): Promise<FriendsPostsGroupedWithImages> {
+  const groups = assertOk(await listFriendsPostsGrouped());
+  const paths = groups.flatMap((group) =>
+    group.posts.map((post) => post.storage_object_path),
   );
-  return posts.map((post) => ({
-    ...post,
-    imageUrl: urls[post.storage_object_path],
-  }));
+  const urls = assertOk(await getPostImageUrls(paths));
+  return {
+    groups: groups.map((group) => ({
+      ...group,
+      posts: group.posts.map((post) =>
+        enrichGroupedPost(group, post, urls[post.storage_object_path]),
+      ),
+    })),
+  };
 }
 
 async function fetchPostWithImage(postId: string): Promise<PostDetailWithImage> {
@@ -119,7 +129,7 @@ export function useProfileFeedQuery(
 export function useFriendsPostsQuery() {
   return useQuery({
     queryKey: queryKeys.friendsPosts(),
-    queryFn: fetchFriendsPostsWithImages,
+    queryFn: fetchFriendsPostsGroupedWithImages,
   });
 }
 
@@ -188,12 +198,24 @@ function patchPostListCaches(
       Pick<ProfileFeedPost, 'is_pinned_to_current_profile'>
   >,
 ) {
-  const updater = (old: { id: string }[] | undefined) =>
+  const flatUpdater = (old: { id: string }[] | undefined) =>
     old?.map((post) => (post.id === postId ? { ...post, ...patch } : post));
 
-  queryClient.setQueriesData({ queryKey: ['feed'] }, updater);
-  queryClient.setQueriesData({ queryKey: ['profile-feed'] }, updater);
-  queryClient.setQueriesData({ queryKey: queryKeys.friendsPosts() }, updater);
+  const groupedUpdater = (old: FriendsPostsGroupedWithImages | undefined) => {
+    if (!old) return old;
+    return {
+      groups: old.groups.map((group) => ({
+        ...group,
+        posts: group.posts.map((post) =>
+          post.id === postId ? { ...post, ...patch } : post,
+        ),
+      })),
+    };
+  };
+
+  queryClient.setQueriesData({ queryKey: ['feed'] }, flatUpdater);
+  queryClient.setQueriesData({ queryKey: ['profile-feed'] }, flatUpdater);
+  queryClient.setQueriesData({ queryKey: queryKeys.friendsPosts() }, groupedUpdater);
 }
 
 export function useToggleLikeMutation(postId: string | null) {
