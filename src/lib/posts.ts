@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase';
 import type { Database } from '@/lib/database.types';
+import { toPostgisPoint } from '@/lib/postgis';
 
 export type FeedPost =
   Database['public']['Functions']['list_feed_posts']['Returns'][number];
@@ -57,10 +58,6 @@ function randomUuid(): string {
     const value = char === 'x' ? random : (random & 0x3) | 0x8;
     return value.toString(16);
   });
-}
-
-function toPostgisPoint(longitude: number, latitude: number): string {
-  return `POINT(${longitude} ${latitude})`;
 }
 
 export function buildPostImagePath(userId: string, extension = 'jpg'): string {

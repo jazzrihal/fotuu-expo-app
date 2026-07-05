@@ -32,6 +32,15 @@ export default function HomeLayout() {
           headerLargeTitle: false,
         }}
       />
+      <Stack.Screen
+        name="moments"
+        options={{
+          title: "Saved Moments",
+          presentation: "modal",
+          headerShown: true,
+          headerLargeTitle: false,
+        }}
+      />
     </Stack>
   );
 }

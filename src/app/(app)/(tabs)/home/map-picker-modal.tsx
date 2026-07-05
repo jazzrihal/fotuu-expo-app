@@ -117,6 +117,7 @@ export default function MapPickerModal() {
           <View style={styles.searchContainer} pointerEvents="box-none">
             <View style={styles.searchBar}>
               <TextInput
+                testID="map-picker-search"
                 style={styles.searchInput}
                 value={searchQuery}
                 onChangeText={handleSearchChange}

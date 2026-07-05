@@ -1,0 +1,72 @@
+appId: com.jazzrihal.Fotuu
+env:
+  E2E_EMAIL: ${E2E_EMAIL || "alice@example.com"}
+  E2E_PASSWORD: ${E2E_PASSWORD || "fotuu-local-dev"}
+---
+- runFlow:
+    file: ../auth/sign-in.yaml
+    env:
+      E2E_EMAIL: ${E2E_EMAIL}
+      E2E_PASSWORD: ${E2E_PASSWORD}
+- tapOn: "Feed"
+- runFlow:
+    when:
+      visible: "Allow"
+    commands:
+      - tapOn: "Allow"
+- runFlow:
+    when:
+      visible:
+        id: "home-feed-accept-location"
+    commands:
+      - tapOn:
+          id: "home-feed-accept-location"
+- extendedWaitUntil:
+    visible:
+      id: "home-feed-location"
+    timeout: 15000
+- copyTextFrom:
+    id: "home-feed-location"
+- tapOn: "Saved moments"
+- assertVisible: "Saved Moments"
+- tapOn: "Save"
+- extendedWaitUntil:
+    visible:
+      id: "moments-list-section"
+    timeout: 10000
+- back
+- tapOn:
+    id: "home-feed-location"
+- assertVisible: "Pick Location"
+- tapOn:
+    id: "map-picker-search"
+- inputText: "Brooklyn"
+- extendedWaitUntil:
+    visible: "Brooklyn"
+    timeout: 10000
+- tapOn: "Brooklyn"
+- tapOn: "Confirm"
+- extendedWaitUntil:
+    visible:
+      id: "home-feed"
+    timeout: 10000
+- tapOn: "Saved moments"
+- assertVisible: "Saved Moments"
+- tapOn:
+    point: "50%,55%"
+- extendedWaitUntil:
+    visible:
+      id: "home-feed-location"
+    timeout: 10000
+- assertVisible:
+    text: ${maestro.copiedText}
+- tapOn: "Saved moments"
+- swipe:
+    start: "50%,55%"
+    end: "10%,55%"
+    duration: 300
+- tapOn: "Delete"
+- extendedWaitUntil:
+    visible:
+      id: "moments-empty"
+    timeout: 10000

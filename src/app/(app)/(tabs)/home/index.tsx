@@ -14,7 +14,15 @@ import { Stack, useRouter } from "expo-router";
 import { HomeFeedHeader } from "@/components/home-feed-header";
 import { type MapCoordinates } from "@/components/map-picker";
 import { locationPicker$ } from "@/lib/location-picker-store";
-import { resolveLocationLabel } from "@/lib/location-label";
+import {
+  resolveLocationLabel,
+  resolvePostLocationParts,
+} from "@/lib/location-label";
+import { formatMomentLocation } from "@/lib/moment-display";
+import {
+  momentPicker$,
+} from "@/lib/moment-picker-store";
+import { buildLocationLine, type PostLocationParts } from "@/lib/post-display";
 import { openPostDetail } from "@/lib/navigation";
 import { useFeedQuery, type FeedPostWithImage } from "@/queries/posts";
 
@@ -30,6 +38,7 @@ export default function Home() {
   const [selectedLocation, setSelectedLocation] =
     useState<MapCoordinates | null>(null);
   const [locationLabel, setLocationLabel] = useState("Current location");
+  const [locationParts, setLocationParts] = useState<PostLocationParts>({});
   const [initializingLocation, setInitializingLocation] = useState(true);
   const [locationSheetOpen, setLocationSheetOpen] = useState(false);
 
@@ -62,9 +71,33 @@ export default function Home() {
       return;
     }
 
+    const parts = await resolvePostLocationParts(value);
     setSelectedLocation(value);
-    setLocationLabel(await resolveLocationLabel(value));
+    setLocationParts(parts);
+    setLocationLabel(
+      buildLocationLine(parts) || (await resolveLocationLabel(value)),
+    );
     locationPicker$.confirmed.set(null);
+  });
+
+  useObserve(momentPicker$.applied, ({ value }) => {
+    if (!value) {
+      return;
+    }
+
+    setSelectedDate(new Date(value.occurredAt));
+    setSelectedLocation({
+      latitude: value.latitude,
+      longitude: value.longitude,
+    });
+    setLocationParts({
+      address: value.address || null,
+      city: value.city || null,
+      region: value.region || null,
+      country: value.country || null,
+    });
+    setLocationLabel(formatMomentLocation(value));
+    momentPicker$.applied.set(null);
   });
 
   useEffect(() => {
@@ -96,7 +129,11 @@ export default function Home() {
         }
 
         setSelectedLocation(coordinates);
-        setLocationLabel(await resolveLocationLabel(coordinates));
+        const parts = await resolvePostLocationParts(coordinates);
+        setLocationParts(parts);
+        setLocationLabel(
+          buildLocationLine(parts) || (await resolveLocationLabel(coordinates)),
+        );
       } catch {
         if (!cancelled) {
           setLocationLabel("Select location");
@@ -135,12 +172,34 @@ export default function Home() {
         longitude: position.coords.longitude,
       };
       setSelectedLocation(coordinates);
-      setLocationLabel(await resolveLocationLabel(coordinates));
+      const parts = await resolvePostLocationParts(coordinates);
+      setLocationParts(parts);
+      setLocationLabel(
+        buildLocationLine(parts) || (await resolveLocationLabel(coordinates)),
+      );
       setLocationSheetOpen(false);
     } catch {
       setLocationLabel("Select location");
     }
   }, []);
+
+  const openMoments = useCallback(() => {
+    momentPicker$.draft.set(
+      hasLocation
+        ? {
+            occurredAt: selectedDate.toISOString(),
+            latitude: selectedLocation!.latitude,
+            longitude: selectedLocation!.longitude,
+            ...locationParts,
+          }
+        : {
+            occurredAt: selectedDate.toISOString(),
+            latitude: NaN,
+            longitude: NaN,
+          },
+    );
+    router.push("/(app)/(tabs)/home/moments");
+  }, [hasLocation, locationParts, router, selectedDate, selectedLocation]);
 
   const showLocationEmpty =
     !initializingLocation && !showFeedLoading && !selectedLocation;
@@ -256,6 +315,11 @@ export default function Home() {
       ) : null}
 
       <Stack.Toolbar placement="right">
+        <Stack.Toolbar.Button
+          accessibilityLabel="Saved moments"
+          icon="bookmark"
+          onPress={openMoments}
+        />
         <Stack.Toolbar.Button
           accessibilityLabel="New post"
           icon="plus"

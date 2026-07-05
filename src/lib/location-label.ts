@@ -16,6 +16,7 @@ export async function resolvePostLocationParts(
       address: place.street ?? place.name ?? null,
       city: place.city ?? null,
       region: place.region ?? null,
+      country: place.country ?? null,
     };
   } catch {
     return {};

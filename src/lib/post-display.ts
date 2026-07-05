@@ -4,6 +4,7 @@ export type PostLocationParts = {
   address?: string | null;
   city?: string | null;
   region?: string | null;
+  country?: string | null;
 };
 
 export function formatCapturedAt(value: string | Date): string {
@@ -15,5 +16,7 @@ export function formatCapturedAtAgo(value: string | Date): string {
 }
 
 export function buildLocationLine(parts: PostLocationParts): string {
-  return [parts.address, parts.city, parts.region].filter(Boolean).join(', ');
+  return [parts.address, parts.city, parts.region, parts.country]
+    .filter(Boolean)
+    .join(', ');
 }
