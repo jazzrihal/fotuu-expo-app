@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { ActivityIndicator, StyleSheet, View } from "react-native";
-import { Column, FieldGroup, Host, Text } from "@expo/ui";
+import { Column, FieldGroup, Host, ListItem, Text } from "@expo/ui";
 import { Stack, useRouter } from "expo-router";
 import { Empty } from "@/components/empty";
 import { SwipeableMomentListItem } from "@/components/swipeable-moment-list-item";
@@ -33,25 +33,32 @@ export default function MomentsScreen() {
 
   const moments = momentsQuery.data ?? [];
   const draftValid = isValidMomentDraft(draft);
+  const saveDisabled =
+    !draftValid || createMutation.isPending || !session?.user.id;
   const busyDeleteId = deleteMutation.isPending
     ? (deleteMutation.variables ?? null)
     : null;
 
   function handleSave() {
-    if (!draftValid || !session?.user.id || createMutation.isPending) {
+    const currentDraft = momentPicker$.draft.get();
+    if (
+      !isValidMomentDraft(currentDraft) ||
+      !session?.user.id ||
+      createMutation.isPending
+    ) {
       return;
     }
 
     setActionError(null);
     createMutation.mutate(
       {
-        occurredAt: draft.occurredAt,
-        latitude: draft.latitude,
-        longitude: draft.longitude,
-        address: draft.address,
-        city: draft.city,
-        region: draft.region,
-        country: draft.country,
+        occurredAt: currentDraft.occurredAt,
+        latitude: currentDraft.latitude,
+        longitude: currentDraft.longitude,
+        address: currentDraft.address,
+        city: currentDraft.city,
+        region: currentDraft.region,
+        country: currentDraft.country,
         userId: session.user.id,
       },
       {
@@ -82,85 +89,87 @@ export default function MomentsScreen() {
     });
   }
 
-  const listContent = (() => {
-    if (momentsQuery.isPending) {
-      return <ActivityIndicator style={styles.loader} />;
+  const savedSection = (() => {
+    if (momentsQuery.isPending || momentsQuery.error || moments.length === 0) {
+      return null;
     }
-
-    if (momentsQuery.error) {
-      return (
-        <Host style={styles.message}>
-          <Text>{momentsQuery.error.message}</Text>
-        </Host>
-      );
-    }
-
-    if (moments.length === 0) {
-      return (
-        <Empty
-          testID="moments-empty"
-          title="No saved moments"
-          description="Save a date and location from Home to recall them later."
-        />
-      );
-    }
-
     return (
-      <FieldGroup>
-        <FieldGroup.Section testID="moments-list-section">
-          {moments.map((moment) => (
-            <SwipeableMomentListItem
-              key={moment.id}
-              testID={`moments-list-item-${moment.id}`}
-              moment={moment}
-              onPress={() => applyMomentRow(moment)}
-              trailingActions={[
-                {
-                  label: "Delete",
-                  role: "destructive",
-                  disabled:
-                    busyDeleteId !== null && busyDeleteId !== moment.id,
-                  onPress: () => handleDelete(moment.id),
-                },
-              ]}
-            />
-          ))}
-        </FieldGroup.Section>
-      </FieldGroup>
+      <FieldGroup.Section testID="moments-list-section" title="Saved">
+        {moments.map((moment) => (
+          <SwipeableMomentListItem
+            key={moment.id}
+            testID={`moments-list-item-${moment.id}`}
+            moment={moment}
+            onPress={() => applyMomentRow(moment)}
+            trailingActions={[
+              {
+                label: "Delete",
+                role: "destructive",
+                disabled: busyDeleteId !== null && busyDeleteId !== moment.id,
+                onPress: () => handleDelete(moment.id),
+              },
+            ]}
+          />
+        ))}
+      </FieldGroup.Section>
     );
   })();
 
   return (
-    <View style={styles.screen}>
-      <View style={styles.summary} testID="moments-draft-summary">
-        {draftValid ? (
-          <Column spacing={4}>
-            <Text>{formatMomentOccurredAt(draft.occurredAt)}</Text>
-            <Text>{formatMomentLocation(draft)}</Text>
+    <>
+      <View style={styles.screen}>
+        <View style={styles.hostWrapper}>
+          <Host style={styles.host} useViewportSizeMeasurement>
+            <FieldGroup>
+              <FieldGroup.Section
+                testID="moments-draft-summary"
+                title="Current moment"
+              >
+                {draftValid ? (
+                  <ListItem supportingText={formatMomentLocation(draft)}>
+                    {formatMomentOccurredAt(draft.occurredAt)}
+                  </ListItem>
+                ) : (
+                  <ListItem>Set a location on Home to save a moment</ListItem>
+                )}
+              </FieldGroup.Section>
+              {savedSection}
+            </FieldGroup>
+          </Host>
+        </View>
+        {momentsQuery.isPending && (
+          <ActivityIndicator style={styles.loader} />
+        )}
+        {momentsQuery.error && (
+          <Column style={styles.message}>
+            <Text testID="moments-load-error">{momentsQuery.error.message}</Text>
           </Column>
-        ) : (
-          <Text>Set a location on Home to save a moment</Text>
+        )}
+        {!momentsQuery.isPending && !momentsQuery.error && moments.length === 0 && (
+          <Empty
+            testID="moments-empty"
+            title="No saved moments"
+            description="Save a date and location from Home to recall them later."
+          />
         )}
         {actionError ? (
-          <Text testID="moments-action-error">{actionError}</Text>
+          <Column style={styles.message}>
+            <Text testID="moments-action-error">{actionError}</Text>
+          </Column>
         ) : null}
       </View>
 
-      <View style={styles.list}>{listContent}</View>
-
       <Stack.Toolbar placement="right">
         <Stack.Toolbar.Button
-          accessibilityLabel="Save"
+          accessibilityLabel={createMutation.isPending ? "Saving" : "Save"}
           variant="done"
-          disabled={
-            !draftValid || createMutation.isPending || !session?.user.id
-          }
+          disabled={saveDisabled}
           onPress={handleSave}
         >
-          Save
+          {createMutation.isPending ? "Saving…" : "Save"}
         </Stack.Toolbar.Button>
       </Stack.Toolbar>
-    </View>
+    </>
   );
 }
 
@@ -168,13 +177,10 @@ const styles = StyleSheet.create({
   screen: {
     flex: 1,
   },
-  summary: {
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 8,
-    gap: 8,
+  hostWrapper: {
+    flex: 1,
   },
-  list: {
+  host: {
     flex: 1,
   },
   loader: {

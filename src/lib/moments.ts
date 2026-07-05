@@ -1,6 +1,5 @@
 import { supabase } from '@/lib/supabase';
 import type { Database } from '@/lib/database.types';
-import { toPostgisPoint } from '@/lib/postgis';
 
 export type MomentListItem =
   Database['public']['Functions']['list_moments']['Returns'][number];
@@ -41,7 +40,6 @@ export async function createMoment(
     occurred_at: input.occurredAt,
     latitude: input.latitude,
     longitude: input.longitude,
-    location: toPostgisPoint(input.longitude, input.latitude),
     address: input.address?.trim() || null,
     city: input.city?.trim() || null,
     region: input.region?.trim() || null,

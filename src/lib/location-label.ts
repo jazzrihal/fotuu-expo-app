@@ -23,6 +23,10 @@ export async function resolvePostLocationParts(
   }
 }
 
+export function formatLocationButtonLabel(parts: PostLocationParts): string {
+  return parts.city ?? parts.region ?? parts.country ?? 'Selected location';
+}
+
 export async function resolveLocationLabel(coordinates: MapCoordinates): Promise<string> {
   try {
     const [place] = await Location.reverseGeocodeAsync(coordinates);

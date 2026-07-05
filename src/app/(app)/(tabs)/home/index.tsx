@@ -15,14 +15,13 @@ import { HomeFeedHeader } from "@/components/home-feed-header";
 import { type MapCoordinates } from "@/components/map-picker";
 import { locationPicker$ } from "@/lib/location-picker-store";
 import {
-  resolveLocationLabel,
+  formatLocationButtonLabel,
   resolvePostLocationParts,
 } from "@/lib/location-label";
-import { formatMomentLocation } from "@/lib/moment-display";
 import {
   momentPicker$,
 } from "@/lib/moment-picker-store";
-import { buildLocationLine, type PostLocationParts } from "@/lib/post-display";
+import type { PostLocationParts } from "@/lib/post-display";
 import { openPostDetail } from "@/lib/navigation";
 import { useFeedQuery, type FeedPostWithImage } from "@/queries/posts";
 
@@ -74,9 +73,7 @@ export default function Home() {
     const parts = await resolvePostLocationParts(value);
     setSelectedLocation(value);
     setLocationParts(parts);
-    setLocationLabel(
-      buildLocationLine(parts) || (await resolveLocationLabel(value)),
-    );
+    setLocationLabel(formatLocationButtonLabel(parts));
     locationPicker$.confirmed.set(null);
   });
 
@@ -96,7 +93,13 @@ export default function Home() {
       region: value.region || null,
       country: value.country || null,
     });
-    setLocationLabel(formatMomentLocation(value));
+    setLocationLabel(
+      formatLocationButtonLabel({
+        city: value.city || null,
+        region: value.region || null,
+        country: value.country || null,
+      }),
+    );
     momentPicker$.applied.set(null);
   });
 
@@ -131,9 +134,7 @@ export default function Home() {
         setSelectedLocation(coordinates);
         const parts = await resolvePostLocationParts(coordinates);
         setLocationParts(parts);
-        setLocationLabel(
-          buildLocationLine(parts) || (await resolveLocationLabel(coordinates)),
-        );
+        setLocationLabel(formatLocationButtonLabel(parts));
       } catch {
         if (!cancelled) {
           setLocationLabel("Select location");
@@ -174,9 +175,7 @@ export default function Home() {
       setSelectedLocation(coordinates);
       const parts = await resolvePostLocationParts(coordinates);
       setLocationParts(parts);
-      setLocationLabel(
-        buildLocationLine(parts) || (await resolveLocationLabel(coordinates)),
-      );
+      setLocationLabel(formatLocationButtonLabel(parts));
       setLocationSheetOpen(false);
     } catch {
       setLocationLabel("Select location");
