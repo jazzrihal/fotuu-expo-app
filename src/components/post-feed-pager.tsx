@@ -20,6 +20,7 @@ type PostFeedPagerProps = {
   refreshing?: boolean;
   onRefresh?: () => void;
   isLocalOnly?: boolean;
+  localPostIds?: Set<string>;
 };
 
 const NATIVE_TAB_BAR_HEIGHT = Platform.select({
@@ -37,6 +38,7 @@ export function PostFeedPager({
   refreshing,
   onRefresh,
   isLocalOnly = false,
+  localPostIds,
 }: PostFeedPagerProps) {
   const [pageHeight, setPageHeight] = useState(0);
   const insets = useSafeAreaInsets();
@@ -85,10 +87,10 @@ export function PostFeedPager({
         testIDPrefix={testIDPrefix}
         pageHeight={pageHeight}
         bottomInset={bottomInset}
-        isLocalOnly={isLocalOnly}
+        isLocalOnly={isLocalOnly || (localPostIds?.has(item.id) ?? false)}
       />
     ),
-    [bottomInset, isLocalOnly, pageHeight, testIDPrefix],
+    [bottomInset, isLocalOnly, localPostIds, pageHeight, testIDPrefix],
   );
 
   const getItemLayout = useCallback(

@@ -11,14 +11,15 @@ import { PostFeedGrid, type PostGridItem } from '@/components/post-feed-grid';
 import { Stack, useFocusEffect, useRouter } from 'expo-router';
 import { useAuth } from '@/context/auth';
 import { profileDisplayName } from '@/lib/profile-display';
-import { openPostDetail, openLocalPostDetail } from '@/lib/navigation';
 import {
   useProfileFeedQuery,
   type ProfileFeedPostWithImage,
 } from '@/queries/posts';
 import { useUserProfileQuery } from '@/queries/profile';
 import { useLocalPosts } from '@/hooks/useLocalPosts';
+import { localPostToDetail } from '@/lib/local-post-adapter';
 import type { LocalPost } from '@/lib/post-manager';
+import type { PostDetailWithImage } from '@/queries/posts';
 
 type ProfileGridItem = PostGridItem & {
   _sortKey: number;
@@ -79,16 +80,25 @@ export default function Profile() {
   const handleOpenPostDetail = useCallback(
     (post: ProfileGridItem) => {
       if (!userId) return;
-      if (post._localPost) {
-        openLocalPostDetail(router, post._localPost);
-      } else if (post._remotePost) {
-        openPostDetail(router, post._remotePost, {
+
+      // Adapt the full merged feed so the pager can scroll through all posts,
+      // both local and remote, regardless of which was tapped.
+      const adaptedFeed: PostDetailWithImage[] = mergedPosts.map((item) =>
+        item._localPost ? localPostToDetail(item._localPost) : item._remotePost!,
+      );
+      const localPostIdsList = localPosts.map((lp) => lp.id);
+
+      router.push({
+        pathname: '/(app)/post/[id]',
+        params: {
+          id: post.id,
           testIDPrefix: 'profile-post',
-          feedSource: { type: 'profile', userId },
-        });
-      }
+          localFeed: JSON.stringify(adaptedFeed),
+          localPostIds: JSON.stringify(localPostIdsList),
+        },
+      });
     },
-    [router, userId],
+    [router, userId, mergedPosts, localPosts],
   );
 
   const feedContent = (() => {

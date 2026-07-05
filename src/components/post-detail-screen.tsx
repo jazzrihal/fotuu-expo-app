@@ -44,15 +44,52 @@ function parseLocalPostParam(
   }
 }
 
+function parseLocalFeedParam(
+  param: string | string[] | undefined,
+): PostDetailWithImage[] | null {
+  if (!param || typeof param !== "string") {
+    return null;
+  }
+
+  try {
+    return JSON.parse(param) as PostDetailWithImage[];
+  } catch {
+    return null;
+  }
+}
+
+function parseLocalPostIdsParam(
+  param: string | string[] | undefined,
+): Set<string> {
+  if (!param || typeof param !== "string") {
+    return new Set();
+  }
+
+  try {
+    return new Set<string>(JSON.parse(param) as string[]);
+  } catch {
+    return new Set();
+  }
+}
+
 export function PostDetailScreen() {
-  const { id, post: postParam, testIDPrefix: testIDPrefixParam, feedSource: feedSourceParam, localPost: localPostParam } =
-    useLocalSearchParams<{
-      id: string;
-      post?: string;
-      testIDPrefix?: string;
-      feedSource?: string;
-      localPost?: string;
-    }>();
+  const {
+    id,
+    post: postParam,
+    testIDPrefix: testIDPrefixParam,
+    feedSource: feedSourceParam,
+    localPost: localPostParam,
+    localFeed: localFeedParam,
+    localPostIds: localPostIdsParam,
+  } = useLocalSearchParams<{
+    id: string;
+    post?: string;
+    testIDPrefix?: string;
+    feedSource?: string;
+    localPost?: string;
+    localFeed?: string;
+    localPostIds?: string;
+  }>();
   const testIDPrefix = parsePostDetailTestIDPrefix(testIDPrefixParam);
   const feedSource = useMemo(
     () => parsePostFeedSource(feedSourceParam),
@@ -61,6 +98,8 @@ export function PostDetailScreen() {
 
   const parsedPost = useMemo(() => parsePostParam(postParam), [postParam]);
   const parsedLocalPost = useMemo(() => parseLocalPostParam(localPostParam), [localPostParam]);
+  const parsedLocalFeed = useMemo(() => parseLocalFeedParam(localFeedParam), [localFeedParam]);
+  const parsedLocalPostIds = useMemo(() => parseLocalPostIdsParam(localPostIdsParam), [localPostIdsParam]);
 
   const postId = useMemo(() => {
     if (typeof id === "string" && id.length > 0) {
@@ -69,19 +108,41 @@ export function PostDetailScreen() {
     return parsedPost?.id ?? parsedLocalPost?.id ?? null;
   }, [id, parsedPost?.id, parsedLocalPost?.id]);
 
-  // Always call hooks unconditionally (Rules of Hooks).
-  const feedQuery = usePostFeedPosts(parsedLocalPost ? null : feedSource);
+  const isInlineMode = !!(parsedLocalFeed ?? parsedLocalPost);
 
-  const fallbackPostQuery = usePostQuery(parsedLocalPost ? null : postId, {
+  // Always call hooks unconditionally (Rules of Hooks).
+  const feedQuery = usePostFeedPosts(isInlineMode ? null : feedSource);
+
+  const fallbackPostQuery = usePostQuery(isInlineMode ? null : postId, {
     placeholderData: parsedPost ?? undefined,
-    enabled: !feedSource && !parsedLocalPost,
+    enabled: !feedSource && !isInlineMode,
   });
 
   const screenOptions = (
     <Stack.Screen options={{ title: "", headerLargeTitle: false }} />
   );
 
-  // Local-only mode: bypass Supabase entirely.
+  // Inline feed mode: full mixed feed passed from the navigating screen (e.g. profile).
+  if (parsedLocalFeed) {
+    const initialIndex = postId
+      ? parsedLocalFeed.findIndex((p) => p.id === postId)
+      : 0;
+    return (
+      <>
+        {screenOptions}
+        <PostFeedPager
+          posts={parsedLocalFeed}
+          testIDPrefix={testIDPrefix}
+          testID={`${testIDPrefix}-feed-pager`}
+          initialIndex={initialIndex >= 0 ? initialIndex : 0}
+          includeTabBarInset={false}
+          localPostIds={parsedLocalPostIds}
+        />
+      </>
+    );
+  }
+
+  // Single local-only post (e.g. opened from a notification or deep link).
   if (parsedLocalPost) {
     const adapted = localPostToDetail(parsedLocalPost);
     return (
