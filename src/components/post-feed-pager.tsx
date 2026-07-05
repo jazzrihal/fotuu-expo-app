@@ -19,6 +19,7 @@ type PostFeedPagerProps = {
   includeTabBarInset?: boolean;
   refreshing?: boolean;
   onRefresh?: () => void;
+  isLocalOnly?: boolean;
 };
 
 const NATIVE_TAB_BAR_HEIGHT = Platform.select({
@@ -35,6 +36,7 @@ export function PostFeedPager({
   includeTabBarInset = false,
   refreshing,
   onRefresh,
+  isLocalOnly = false,
 }: PostFeedPagerProps) {
   const [pageHeight, setPageHeight] = useState(0);
   const insets = useSafeAreaInsets();
@@ -83,9 +85,10 @@ export function PostFeedPager({
         testIDPrefix={testIDPrefix}
         pageHeight={pageHeight}
         bottomInset={bottomInset}
+        isLocalOnly={isLocalOnly}
       />
     ),
-    [bottomInset, pageHeight, testIDPrefix],
+    [bottomInset, isLocalOnly, pageHeight, testIDPrefix],
   );
 
   const getItemLayout = useCallback(

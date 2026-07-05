@@ -11,7 +11,7 @@ import { PostFeedGrid, type PostGridItem } from '@/components/post-feed-grid';
 import { Stack, useFocusEffect, useRouter } from 'expo-router';
 import { useAuth } from '@/context/auth';
 import { profileDisplayName } from '@/lib/profile-display';
-import { openPostDetail } from '@/lib/navigation';
+import { openPostDetail, openLocalPostDetail } from '@/lib/navigation';
 import {
   useProfileFeedQuery,
   type ProfileFeedPostWithImage,
@@ -21,6 +21,7 @@ import { useLocalPosts } from '@/hooks/useLocalPosts';
 import type { LocalPost } from '@/lib/post-manager';
 
 type ProfileGridItem = PostGridItem & {
+  _sortKey: number;
   _localPost?: LocalPost;
   _remotePost?: ProfileFeedPostWithImage;
 };
@@ -46,7 +47,7 @@ export default function Profile() {
 
   const displayName = profileDisplayName(profileQuery.data, email);
 
-  // Build merged grid items: local-only posts first (sorted newest first), then remote
+  // Build merged grid items sorted by date descending.
   const mergedPosts = useMemo((): ProfileGridItem[] => {
     const remoteIds = new Set((feedQuery.data ?? []).map((p) => p.id));
 
@@ -57,15 +58,17 @@ export default function Profile() {
         imageUrl: lp.local_image_uri,
         isLocal: true,
         syncStatus: lp.status,
+        _sortKey: lp.created_at,
         _localPost: lp,
       }));
 
     const remoteItems: ProfileGridItem[] = (feedQuery.data ?? []).map((rp) => ({
       ...rp,
+      _sortKey: new Date(rp.created_at).getTime(),
       _remotePost: rp,
     }));
 
-    return [...localItems, ...remoteItems];
+    return [...localItems, ...remoteItems].sort((a, b) => b._sortKey - a._sortKey);
   }, [localPosts, feedQuery.data]);
 
   const showFeedLoading = feedQuery.isPending && localPosts.length === 0;
@@ -76,13 +79,14 @@ export default function Profile() {
   const handleOpenPostDetail = useCallback(
     (post: ProfileGridItem) => {
       if (!userId) return;
-      if (post._remotePost) {
+      if (post._localPost) {
+        openLocalPostDetail(router, post._localPost);
+      } else if (post._remotePost) {
         openPostDetail(router, post._remotePost, {
           testIDPrefix: 'profile-post',
           feedSource: { type: 'profile', userId },
         });
       }
-      // Local-only posts open their own detail screen (not yet implemented)
     },
     [router, userId],
   );

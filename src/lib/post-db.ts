@@ -11,6 +11,10 @@ export type LocalPost = {
   privacy_scope: string;
   latitude: number | null;
   longitude: number | null;
+  display_name: string | null;
+  address: string | null;
+  city: string | null;
+  region: string | null;
   status: LocalPostStatus;
   remote_post_id: string | null;
   storage_object_path: string | null;
@@ -76,6 +80,20 @@ export async function migrateDb(db: SQLite.SQLiteDatabase): Promise<void> {
     CREATE INDEX IF NOT EXISTS idx_upload_outbox_next_attempt
       ON upload_outbox(next_attempt_at);
   `);
+
+  // Add new location/profile columns to existing installs (idempotent).
+  for (const ddl of [
+    'ALTER TABLE local_posts ADD COLUMN display_name TEXT',
+    'ALTER TABLE local_posts ADD COLUMN address TEXT',
+    'ALTER TABLE local_posts ADD COLUMN city TEXT',
+    'ALTER TABLE local_posts ADD COLUMN region TEXT',
+  ]) {
+    try {
+      await db.execAsync(ddl);
+    } catch {
+      // Column already exists — safe to ignore.
+    }
+  }
 }
 
 export async function insertLocalPost(
@@ -86,9 +104,10 @@ export async function insertLocalPost(
   await db.runAsync(
     `INSERT INTO local_posts
        (id, user_id, local_image_uri, captured_at, caption, privacy_scope,
-        latitude, longitude, status, remote_post_id, storage_object_path,
+        latitude, longitude, display_name, address, city, region,
+        status, remote_post_id, storage_object_path,
         error_message, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     post.id,
     post.user_id,
     post.local_image_uri,
@@ -97,6 +116,10 @@ export async function insertLocalPost(
     post.privacy_scope,
     post.latitude ?? null,
     post.longitude ?? null,
+    post.display_name ?? null,
+    post.address ?? null,
+    post.city ?? null,
+    post.region ?? null,
     post.status,
     post.remote_post_id ?? null,
     post.storage_object_path ?? null,

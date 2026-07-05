@@ -39,6 +39,7 @@ type PostDetailContentProps = {
   actionError: string | null;
   localPost?: LocalPost | null;
   onUploadToCloud?: () => void;
+  isLocalOnly?: boolean;
 };
 
 const CAPTION_LINE_HEIGHT = 22;
@@ -59,6 +60,7 @@ export function PostDetailContent({
   actionError,
   localPost,
   onUploadToCloud,
+  isLocalOnly = false,
 }: PostDetailContentProps) {
   const { width } = useWindowDimensions();
 
@@ -84,20 +86,22 @@ export function PostDetailContent({
           {post.display_name}
         </Text>
         <Spacer flexible />
-        <Row spacing={25} alignment="center">
-          <PostFeedIconButton
-            icon={isLiked ? "heart.fill" : "heart"}
-            accessibilityLabel={isLiked ? "Unlike" : "Like"}
-            disabled={actionsDisabled}
-            onPress={onToggleLike}
-          />
-          <PostFeedIconButton
-            icon={isPinned ? "pin.fill" : "pin"}
-            accessibilityLabel={isPinned ? "Unpin" : "Pin"}
-            disabled={actionsDisabled}
-            onPress={onTogglePin}
-          />
-        </Row>
+        {!isLocalOnly && (
+          <Row spacing={25} alignment="center">
+            <PostFeedIconButton
+              icon={isLiked ? "heart.fill" : "heart"}
+              accessibilityLabel={isLiked ? "Unlike" : "Like"}
+              disabled={actionsDisabled}
+              onPress={onToggleLike}
+            />
+            <PostFeedIconButton
+              icon={isPinned ? "pin.fill" : "pin"}
+              accessibilityLabel={isPinned ? "Unpin" : "Pin"}
+              disabled={actionsDisabled}
+              onPress={onTogglePin}
+            />
+          </Row>
+        )}
       </Row>
       <Text testID={`${testIDPrefix}-detail-date`}>
         {formatCapturedAtAgo(post.captured_at)}

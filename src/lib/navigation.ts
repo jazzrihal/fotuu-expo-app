@@ -1,4 +1,5 @@
 import type { ImperativeRouter } from 'expo-router';
+import type { LocalPost } from '@/lib/post-db';
 
 export type PostDetailTestIDPrefix =
   | 'home-post'
@@ -73,6 +74,13 @@ export function openPostDetail(
       testIDPrefix: options.testIDPrefix,
       feedSource: JSON.stringify(options.feedSource),
     },
+  });
+}
+
+export function openLocalPostDetail(router: ImperativeRouter, post: LocalPost) {
+  router.push({
+    pathname: '/(app)/post/[id]',
+    params: { id: post.id, localPost: JSON.stringify(post) },
   });
 }
 

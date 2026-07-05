@@ -63,6 +63,7 @@ export default function NewPostScreen() {
   const [latitude, setLatitude] = useState<number | undefined>();
   const [longitude, setLongitude] = useState<number | undefined>();
   const [locationLine, setLocationLine] = useState<string | null>(null);
+  const [locationParts, setLocationParts] = useState<{ address?: string | null; city?: string | null; region?: string | null }>({});
   const [resolvingLocation, setResolvingLocation] = useState(false);
   const [caption, setCaption] = useState("");
   const [privacyScope, setPrivacyScope] =
@@ -193,6 +194,7 @@ export default function NewPostScreen() {
       setLocationLine(null);
       setLatitude(undefined);
       setLongitude(undefined);
+      setLocationParts({});
 
       try {
         const locationPermission =
@@ -219,6 +221,7 @@ export default function NewPostScreen() {
         if (!cancelled) {
           const line = buildLocationLine(parts);
           setLocationLine(line || null);
+          setLocationParts(parts);
         }
       } catch {
         // Location is optional; continue without coordinates.
@@ -283,6 +286,8 @@ export default function NewPostScreen() {
       privacyScope,
       latitude,
       longitude,
+      displayName,
+      ...locationParts,
     });
     if (result.error) {
       setError(result.error);
@@ -321,6 +326,8 @@ export default function NewPostScreen() {
             privacyScope,
             latitude,
             longitude,
+            displayName,
+            ...locationParts,
           });
           if (!saveResult.error && saveResult.localPost) {
             await queuePostForUpload(saveResult.localPost.id);

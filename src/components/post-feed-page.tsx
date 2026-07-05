@@ -18,6 +18,7 @@ type PostFeedPageProps = {
   testIDPrefix: PostDetailTestIDPrefix | "post";
   pageHeight: number;
   bottomInset: number;
+  isLocalOnly?: boolean;
 };
 
 export const PostFeedPage = memo(function PostFeedPage({
@@ -25,12 +26,13 @@ export const PostFeedPage = memo(function PostFeedPage({
   testIDPrefix,
   pageHeight,
   bottomInset,
+  isLocalOnly = false,
 }: PostFeedPageProps) {
   const router = useRouter();
   const { session } = useAuth();
 
-  const likeMutation = useToggleLikeMutation(post.id);
-  const pinMutation = useTogglePinMutation(post.id);
+  const likeMutation = useToggleLikeMutation(isLocalOnly ? null : post.id);
+  const pinMutation = useTogglePinMutation(isLocalOnly ? null : post.id);
 
   const postEngagement = useMemo(
     () => getPostViewerEngagement(post),
@@ -57,12 +59,13 @@ export const PostFeedPage = memo(function PostFeedPage({
   }, [actionPending, pinMutation, postEngagement.isPinned]);
 
   const openAuthorProfile = useCallback(() => {
+    if (isLocalOnly) return;
     openUserProfile(router, session?.user.id, {
       id: post.author_id,
       displayName: post.display_name,
       username: post.username,
     });
-  }, [post.author_id, post.display_name, post.username, router, session?.user.id]);
+  }, [isLocalOnly, post.author_id, post.display_name, post.username, router, session?.user.id]);
 
   return (
     <PostDetailContent
@@ -77,6 +80,7 @@ export const PostFeedPage = memo(function PostFeedPage({
       isPinned={postEngagement.isPinned}
       actionsDisabled={actionsDisabled}
       actionError={actionError}
+      isLocalOnly={isLocalOnly}
     />
   );
 });

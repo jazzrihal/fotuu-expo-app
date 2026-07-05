@@ -59,6 +59,10 @@ export type SaveLocalPostInput = {
   privacyScope: string;
   latitude?: number;
   longitude?: number;
+  displayName?: string | null;
+  address?: string | null;
+  city?: string | null;
+  region?: string | null;
 };
 
 export type SaveLocalPostResult = {
@@ -83,6 +87,10 @@ export async function saveLocalPost(input: SaveLocalPostInput): Promise<SaveLoca
       privacy_scope: input.privacyScope,
       latitude: input.latitude ?? null,
       longitude: input.longitude ?? null,
+      display_name: input.displayName ?? null,
+      address: input.address ?? null,
+      city: input.city ?? null,
+      region: input.region ?? null,
       status: 'local',
       remote_post_id: null,
       storage_object_path: null,
