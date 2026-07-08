@@ -9,5 +9,10 @@ env:
       E2E_EMAIL: ${E2E_EMAIL}
       E2E_PASSWORD: ${E2E_PASSWORD}
 - tapOn: "Friends"
+- tapOn:
+    id: "friends-segments"
+    index: 1
 - assertVisible:
     id: "friends-list"
+- assertVisible:
+    id: "friends-count-bar"

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   StyleSheet,
+  View,
   type NativeSyntheticEvent,
   Text as RNText,
   type TextInputFocusEventData,
@@ -10,6 +11,7 @@ import type { SearchBarCommands } from "react-native-screens";
 import { Button, Column, FieldGroup, Host, Row, Text } from "@expo/ui";
 import { useNavigation } from "expo-router";
 import { Empty } from "@/components/empty";
+import { FriendsCountBar } from "@/components/friends/friends-count-bar";
 import { ProfileListItem } from "@/components/profile-list-item";
 import { SwipeableProfileListItem } from "@/components/swipeable-profile-list-item";
 import type { ProfileSearchResult } from "@/lib/friends";
@@ -161,13 +163,16 @@ export function FriendsListTab({
   const hasRequests = incoming.length > 0 || outgoing.length > 0;
   const searchError =
     searchQuery.error?.message ?? sendMutation.error?.message ?? null;
+  const showCountBar = !isSearchOpen && !loading && !error;
 
   return (
-    <Host
-      testID="friends-list"
-      style={styles.listHost}
-      useViewportSizeMeasurement
-    >
+    <View style={styles.container}>
+      {showCountBar ? <FriendsCountBar count={friends.length} /> : null}
+      <Host
+        testID="friends-list"
+        style={styles.listHost}
+        useViewportSizeMeasurement
+      >
       {isSearchOpen ? (
         isSearchActive ? (
           searchQuery.isPending ? (
@@ -233,127 +238,128 @@ export function FriendsListTab({
         />
       ) : (
         <FieldGroup>
-          {hasRequests ? (
-            <FieldGroup.Section
-              title="Pending"
-              testID="friends-requests-pending"
-            >
-              {incoming.map((request) => (
-                <SwipeableProfileListItem
-                  key={request.request_id}
-                  testID={`incoming-request-${request.username}`}
-                  profileId={request.id}
-                  displayName={request.display_name}
-                  username={request.username}
-                  leadingActions={[
-                    {
-                      label: "Accept",
-                      disabled:
-                        busyRequestId !== null &&
-                        busyRequestId !== request.request_id,
-                      onPress: () => handleRespond(request.request_id, true),
-                    },
-                  ]}
-                  trailingActions={[
-                    {
-                      label: "Decline",
-                      disabled:
-                        busyRequestId !== null &&
-                        busyRequestId !== request.request_id,
-                      onPress: () => handleRespond(request.request_id, false),
-                    },
-                    ,
-                  ]}
-                  trailing={
-                    <Row spacing={8} alignment="center">
-                      <Button
-                        testID={`accept-request-${request.username}`}
-                        variant="filled"
-                        label={
-                          busyRequestId === request.request_id
-                            ? "Accepting…"
-                            : "Accept"
-                        }
-                        disabled={busyRequestId !== null}
-                        onPress={() => handleRespond(request.request_id, true)}
-                      />
-                      <Button
-                        testID={`decline-request-${request.username}`}
-                        variant="outlined"
-                        label={
-                          busyRequestId === request.request_id
-                            ? "Declining…"
-                            : "Decline"
-                        }
-                        disabled={busyRequestId !== null}
-                        onPress={() => handleRespond(request.request_id, false)}
-                      />
-                    </Row>
-                  }
-                />
-              ))}
-              {outgoing.map((request) => (
-                <SwipeableProfileListItem
-                  key={request.request_id}
-                  testID={`outgoing-request-${request.username}`}
-                  profileId={request.id}
-                  displayName={request.display_name}
-                  username={request.username}
-                  trailingActions={[
-                    {
-                      label: "Cancel",
-                      disabled:
-                        busyRequestId !== null &&
-                        busyRequestId !== request.request_id,
-                      onPress: () => handleCancel(request.request_id),
-                    },
-                  ]}
-                  trailing={
-                    <Button
-                      testID={`cancel-request-${request.username}`}
-                      variant="outlined"
-                      label={
-                        busyRequestId === request.request_id
-                          ? "Canceling…"
-                          : "Cancel"
+              {hasRequests ? (
+                <FieldGroup.Section
+                  title="Pending"
+                  testID="friends-requests-pending"
+                >
+                  {incoming.map((request) => (
+                    <SwipeableProfileListItem
+                      key={request.request_id}
+                      testID={`incoming-request-${request.username}`}
+                      profileId={request.id}
+                      displayName={request.display_name}
+                      username={request.username}
+                      leadingActions={[
+                        {
+                          label: "Accept",
+                          disabled:
+                            busyRequestId !== null &&
+                            busyRequestId !== request.request_id,
+                          onPress: () => handleRespond(request.request_id, true),
+                        },
+                      ]}
+                      trailingActions={[
+                        {
+                          label: "Decline",
+                          disabled:
+                            busyRequestId !== null &&
+                            busyRequestId !== request.request_id,
+                          onPress: () => handleRespond(request.request_id, false),
+                        },
+                        ,
+                      ]}
+                      trailing={
+                        <Row spacing={8} alignment="center">
+                          <Button
+                            testID={`accept-request-${request.username}`}
+                            variant="filled"
+                            label={
+                              busyRequestId === request.request_id
+                                ? "Accepting…"
+                                : "Accept"
+                            }
+                            disabled={busyRequestId !== null}
+                            onPress={() => handleRespond(request.request_id, true)}
+                          />
+                          <Button
+                            testID={`decline-request-${request.username}`}
+                            variant="outlined"
+                            label={
+                              busyRequestId === request.request_id
+                                ? "Declining…"
+                                : "Decline"
+                            }
+                            disabled={busyRequestId !== null}
+                            onPress={() => handleRespond(request.request_id, false)}
+                          />
+                        </Row>
                       }
-                      disabled={busyRequestId !== null}
-                      onPress={() => handleCancel(request.request_id)}
                     />
-                  }
-                />
-              ))}
-            </FieldGroup.Section>
-          ) : null}
-          {friends.length > 0 ? (
-            <FieldGroup.Section
-              title={hasRequests ? "Friends" : undefined}
-              testID={hasRequests ? "friends-section" : undefined}
-            >
-              {friends.map((item) => (
-                <SwipeableProfileListItem
-                  key={item.id}
-                  testID={`friend-row-${item.username}`}
-                  profileId={item.id}
-                  displayName={item.display_name}
-                  username={item.username}
-                  subtitle={formatFriendsSince(item.friends_since)}
-                  trailingActions={[
-                    {
-                      label: "Remove",
-                      role: "destructive",
-                      disabled:
-                        busyFriendId !== null && busyFriendId !== item.id,
-                      onPress: () => handleRemoveFriend(item.id),
-                    },
-                  ]}
-                />
-              ))}
-            </FieldGroup.Section>
-          ) : null}
+                  ))}
+                  {outgoing.map((request) => (
+                    <SwipeableProfileListItem
+                      key={request.request_id}
+                      testID={`outgoing-request-${request.username}`}
+                      profileId={request.id}
+                      displayName={request.display_name}
+                      username={request.username}
+                      trailingActions={[
+                        {
+                          label: "Cancel",
+                          disabled:
+                            busyRequestId !== null &&
+                            busyRequestId !== request.request_id,
+                          onPress: () => handleCancel(request.request_id),
+                        },
+                      ]}
+                      trailing={
+                        <Button
+                          testID={`cancel-request-${request.username}`}
+                          variant="outlined"
+                          label={
+                            busyRequestId === request.request_id
+                              ? "Canceling…"
+                              : "Cancel"
+                          }
+                          disabled={busyRequestId !== null}
+                          onPress={() => handleCancel(request.request_id)}
+                        />
+                      }
+                    />
+                  ))}
+                </FieldGroup.Section>
+              ) : null}
+              {friends.length > 0 ? (
+                <FieldGroup.Section
+                  title={hasRequests ? "Friends" : undefined}
+                  testID={hasRequests ? "friends-section" : undefined}
+                >
+                  {friends.map((item) => (
+                    <SwipeableProfileListItem
+                      key={item.id}
+                      testID={`friend-row-${item.username}`}
+                      profileId={item.id}
+                      displayName={item.display_name}
+                      username={item.username}
+                      subtitle={formatFriendsSince(item.friends_since)}
+                      trailingActions={[
+                        {
+                          label: "Remove",
+                          role: "destructive",
+                          disabled:
+                            busyFriendId !== null && busyFriendId !== item.id,
+                          onPress: () => handleRemoveFriend(item.id),
+                        },
+                      ]}
+                    />
+                  ))}
+                </FieldGroup.Section>
+              ) : null}
         </FieldGroup>
       )}
-    </Host>
+      </Host>
+    </View>
   );
 }
 
@@ -394,6 +400,9 @@ function searchTrailingAction({
 }
 
 const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
   listHost: {
     flex: 1,
   },

@@ -1,6 +1,8 @@
 import { supabase } from '@/lib/supabase';
 import type { Database } from '@/lib/database.types';
 
+export const MAX_FRIENDS = 150;
+
 export type Friend = Database['public']['Functions']['list_friends']['Returns'][number];
 export type FriendRequest =
   Database['public']['Functions']['list_incoming_friend_requests']['Returns'][number];
