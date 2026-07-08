@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useCallback, useContext, useEffect, useState } from "react";
 import { StyleSheet, View } from "react-native";
 import { SegmentedControl } from "@expo/ui/community/segmented-control";
-import { Stack } from "expo-router";
+import { Stack, useFocusEffect } from "expo-router";
 import { FriendsFeedTab } from "@/components/friends/friends-feed-tab";
 import { FriendsListTab } from "@/components/friends/friends-list-tab";
+import { TabBarContext } from "@/context/tab-bar";
 
 const SEGMENTS = ["Feed", "Friends"] as const;
 const DEFAULT_SEGMENT_INDEX = 0;
@@ -42,9 +43,22 @@ function FriendsListToolbar({
 }
 
 export default function FriendsScreen() {
+  const { setIsTabBarHidden } = useContext(TabBarContext);
   const [segmentIndex, setSegmentIndex] = useState(DEFAULT_SEGMENT_INDEX);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [query, setQuery] = useState("");
+
+  useFocusEffect(
+    useCallback(() => {
+      return () => {
+        setIsTabBarHidden(false);
+      };
+    }, [setIsTabBarHidden]),
+  );
+
+  useEffect(() => {
+    setIsTabBarHidden(segmentIndex === 1);
+  }, [segmentIndex, setIsTabBarHidden]);
 
   return (
     <>
