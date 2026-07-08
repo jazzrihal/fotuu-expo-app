@@ -8,9 +8,43 @@ import { FriendsListTab } from "@/components/friends/friends-list-tab";
 const SEGMENTS = ["Feed", "Friends"] as const;
 const DEFAULT_SEGMENT_INDEX = 0;
 
+function FriendsListToolbar({
+  onQueryChange,
+  onSearchOpenChange,
+}: {
+  onQueryChange: (text: string) => void;
+  onSearchOpenChange: (open: boolean) => void;
+}) {
+  function closeSearch() {
+    onQueryChange("");
+    onSearchOpenChange(false);
+  }
+
+  return (
+    <>
+      <Stack.SearchBar
+        placeholder="Search by username or name"
+        autoCapitalize="none"
+        placement="integratedButton"
+        allowToolbarIntegration
+        hideWhenScrolling={false}
+        hideNavigationBar
+        onChangeText={(e) => onQueryChange(e.nativeEvent.text)}
+        onFocus={() => onSearchOpenChange(true)}
+        onBlur={() => onSearchOpenChange(false)}
+        onCancelButtonPress={closeSearch}
+      />
+      <Stack.Toolbar>
+        <Stack.Toolbar.SearchBarSlot />
+      </Stack.Toolbar>
+    </>
+  );
+}
+
 export default function FriendsScreen() {
   const [segmentIndex, setSegmentIndex] = useState(DEFAULT_SEGMENT_INDEX);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [query, setQuery] = useState("");
 
   return (
     <>
@@ -24,6 +58,7 @@ export default function FriendsScreen() {
             selectedIndex={segmentIndex}
             onChange={(event) => {
               setSegmentIndex(event.nativeEvent.selectedSegmentIndex);
+              setQuery("");
               setIsSearchOpen(false);
             }}
           />
@@ -32,22 +67,15 @@ export default function FriendsScreen() {
           {segmentIndex === 0 ? (
             <FriendsFeedTab />
           ) : (
-            <FriendsListTab
-              isSearchOpen={isSearchOpen}
-              onSearchOpenChange={setIsSearchOpen}
-            />
+            <FriendsListTab query={query} isSearchOpen={isSearchOpen} />
           )}
         </View>
       </View>
       {segmentIndex === 1 ? (
-        <Stack.Toolbar placement="right">
-          <Stack.Toolbar.Button
-            accessibilityLabel="Search"
-            hidden={isSearchOpen}
-            icon="magnifyingglass"
-            onPress={() => setIsSearchOpen(true)}
-          />
-        </Stack.Toolbar>
+        <FriendsListToolbar
+          onQueryChange={setQuery}
+          onSearchOpenChange={setIsSearchOpen}
+        />
       ) : null}
     </>
   );

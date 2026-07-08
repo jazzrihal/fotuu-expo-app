@@ -9,7 +9,9 @@ env:
       E2E_EMAIL: ${E2E_EMAIL}
       E2E_PASSWORD: ${E2E_PASSWORD}
 - tapOn: "Friends"
-- tapOn: "Search"
+- tapOn:
+    id: "friends-segments"
+    index: 1
 - tapOn: "Search by username or name"
 - inputText: "bob"
 - assertVisible:

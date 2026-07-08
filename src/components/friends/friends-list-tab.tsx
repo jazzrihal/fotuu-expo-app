@@ -1,15 +1,11 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   StyleSheet,
   View,
-  type NativeSyntheticEvent,
   Text as RNText,
-  type TextInputFocusEventData,
 } from "react-native";
-import type { SearchBarCommands } from "react-native-screens";
 import { Button, Column, FieldGroup, Host, Row, Text } from "@expo/ui";
-import { useNavigation } from "expo-router";
 import { Empty } from "@/components/empty";
 import { FriendsCountBar } from "@/components/friends/friends-count-bar";
 import { ProfileListItem } from "@/components/profile-list-item";
@@ -44,17 +40,11 @@ function formatFriendsSince(iso: string) {
 }
 
 type FriendsListTabProps = {
+  query: string;
   isSearchOpen: boolean;
-  onSearchOpenChange: (open: boolean) => void;
 };
 
-export function FriendsListTab({
-  isSearchOpen,
-  onSearchOpenChange,
-}: FriendsListTabProps) {
-  const navigation = useNavigation();
-  const searchBarRef = useRef<SearchBarCommands>(null);
-  const [query, setQuery] = useState("");
+export function FriendsListTab({ query, isSearchOpen }: FriendsListTabProps) {
   const [debouncedQuery, setDebouncedQuery] = useState("");
 
   const friendsQuery = useFriendsQuery();
@@ -102,40 +92,6 @@ export function FriendsListTab({
   const busyFriendId = removeFriendMutation.isPending
     ? (removeFriendMutation.variables ?? null)
     : null;
-
-  useEffect(() => {
-    if (!isSearchOpen) {
-      navigation.setOptions({ headerSearchBarOptions: undefined });
-      return;
-    }
-
-    navigation.setOptions({
-      headerSearchBarOptions: {
-        ref: searchBarRef,
-        placeholder: "Search by username or name",
-        autoCapitalize: "none",
-        autoFocus: true,
-        hideWhenScrolling: false,
-        placement: "inline",
-        onChangeText: (
-          event: NativeSyntheticEvent<TextInputFocusEventData>,
-        ) => {
-          setQuery(event.nativeEvent.text);
-        },
-        onCancelButtonPress: () => {
-          setQuery("");
-          setDebouncedQuery("");
-          onSearchOpenChange(false);
-        },
-      },
-    });
-
-    const focusTimer = setTimeout(() => {
-      searchBarRef.current?.focus();
-    }, 100);
-
-    return () => clearTimeout(focusTimer);
-  }, [isSearchOpen, navigation, onSearchOpenChange]);
 
   useEffect(() => {
     const handle = setTimeout(() => {
