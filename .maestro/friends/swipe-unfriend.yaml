@@ -9,6 +9,8 @@ env:
       E2E_EMAIL: ${E2E_EMAIL}
       E2E_PASSWORD: ${E2E_PASSWORD}
 - tapOn: "Friends"
+- tapOn:
+    id: "friends-list-button"
 - assertVisible:
     id: "friend-row-bob"
 - swipe:

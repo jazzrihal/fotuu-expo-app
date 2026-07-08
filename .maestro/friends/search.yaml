@@ -10,8 +10,7 @@ env:
       E2E_PASSWORD: ${E2E_PASSWORD}
 - tapOn: "Friends"
 - tapOn:
-    id: "friends-segments"
-    index: 1
+    id: "friends-list-button"
 - tapOn: "Search by username or name"
 - inputText: "bob"
 - assertVisible:

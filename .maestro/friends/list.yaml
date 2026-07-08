@@ -10,8 +10,7 @@ env:
       E2E_PASSWORD: ${E2E_PASSWORD}
 - tapOn: "Friends"
 - tapOn:
-    id: "friends-segments"
-    index: 1
+    id: "friends-list-button"
 - assertVisible:
     id: "friends-list"
 - assertVisible:

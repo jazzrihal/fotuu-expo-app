@@ -16,6 +16,16 @@ const FILL_COLORS = {
   dark: "#0A84FF",
 } as const;
 
+const SECTION_BACKGROUNDS = {
+  light: "#FFFFFF",
+  dark: "#1C1C1E",
+} as const;
+
+const SEPARATOR_COLORS = {
+  light: "#C6C6C8",
+  dark: "#38383A",
+} as const;
+
 type FriendsCountBarProps = {
   count: number;
 };
@@ -27,7 +37,16 @@ export function FriendsCountBar({ count }: FriendsCountBarProps) {
   const progress = clampedCount / MAX_FRIENDS;
 
   return (
-    <View style={styles.container} testID="friends-count-bar">
+    <View
+      style={[
+        styles.container,
+        {
+          backgroundColor: SECTION_BACKGROUNDS[theme],
+          borderBottomColor: SEPARATOR_COLORS[theme],
+        },
+      ]}
+      testID="friends-count-bar"
+    >
       <Text
         testID="friends-count-label"
         style={[styles.label, { color: SECONDARY_COLORS[theme] }]}
@@ -61,9 +80,10 @@ export function FriendsCountBar({ count }: FriendsCountBarProps) {
 const styles = StyleSheet.create({
   container: {
     paddingHorizontal: 16,
-    paddingTop: 8,
+    paddingTop: 12,
     paddingBottom: 12,
     gap: 8,
+    borderBottomWidth: StyleSheet.hairlineWidth,
   },
   label: {
     fontSize: 15,
