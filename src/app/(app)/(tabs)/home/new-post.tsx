@@ -7,15 +7,15 @@ import {
   useWindowDimensions,
   View,
 } from "react-native";
+import { KeyboardAwareScrollView, useKeyboardHandler, type KeyboardAwareScrollViewRef } from "react-native-keyboard-controller";
+import { runOnJS } from "react-native-reanimated";
 import {
   Button,
-  Column,
   FieldGroup,
   Host,
   Icon,
   Picker,
   Row,
-  RNHostView,
   Spacer,
   Text,
   TextInput,
@@ -57,6 +57,7 @@ export default function NewPostScreen() {
   const { width } = useWindowDimensions();
   const { colors, dark } = useTheme();
   const cameraRef = useRef<CameraView>(null);
+  const scrollRef = useRef<KeyboardAwareScrollViewRef>(null);
   const shutterRingColor = dark
     ? "rgba(255, 255, 255, 0.3)"
     : "rgba(0, 0, 0, 0.12)";
@@ -351,6 +352,18 @@ export default function NewPostScreen() {
   const submitError =
     savedLocally ? null : error ?? profileQuery.error?.message ?? createPostMutation.error?.message ?? null;
 
+  const scrollToCaption = useCallback(() => {
+    scrollRef.current?.scrollToEnd({ animated: true });
+  }, []);
+  useKeyboardHandler({
+    onEnd: (e) => {
+      'worklet';
+      if (e.height > 0) {
+        runOnJS(scrollToCaption)();
+      }
+    },
+  }, [scrollToCaption]);
+
   function handleDeleteLocation() {
     setLatitude(undefined);
     setLongitude(undefined);
@@ -550,21 +563,23 @@ export default function NewPostScreen() {
 
   return (
     <>
-      <Host style={{ flex: 1 }} useViewportSizeMeasurement>
-        <Column>
-          <RNHostView matchContents>
-            <Image
-              resizeOnTap
-              testID="new-post-preview"
-              source={{ uri: imageUri }}
-              style={{
-                width,
-                height: width,
-              }}
-            />
-          </RNHostView>
+      <KeyboardAwareScrollView
+        ref={scrollRef}
+        style={{ flex: 1 }}
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={{ flexGrow: 1 }}
+      >
+          <Image
+            resizeOnTap
+            testID="new-post-preview"
+            source={{ uri: imageUri }}
+            style={{
+              width,
+              height: width,
+            }}
+          />
 
-          <Host style={{ flex: 1 }} ignoreSafeArea="keyboard">
+          <Host style={{ flex: 1 }}>
             <FieldGroup>
               <FieldGroup.Section>
                 <Row spacing={8}>
@@ -599,6 +614,14 @@ export default function NewPostScreen() {
                           accessibilityLabel="Remove location"
                         />
                       </Button>
+                    </Row>
+                  ) : null}
+                  {!resolvingLocation && locationLine && latitude != null && longitude != null ? (
+                    <Row spacing={8}>
+                      <Icon name="mappin.and.ellipse" size={16} />
+                      <Text textStyle={{ fontSize: 12, color: "#8E8E93" }}>
+                        {`${Math.abs(latitude).toFixed(5)}° ${latitude >= 0 ? "N" : "S"},  ${Math.abs(longitude).toFixed(5)}° ${longitude >= 0 ? "E" : "W"}`}
+                      </Text>
                     </Row>
                   ) : null}
                 </FieldGroup.Section>
@@ -643,8 +666,7 @@ export default function NewPostScreen() {
               ) : null}
             </FieldGroup>
           </Host>
-        </Column>
-      </Host>
+      </KeyboardAwareScrollView>
       <Stack.Toolbar placement="left">
         <Stack.Toolbar.Button
           accessibilityLabel="Cancel"
