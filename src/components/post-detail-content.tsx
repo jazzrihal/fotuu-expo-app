@@ -9,7 +9,7 @@ import {
   Spacer,
   Text,
 } from "@expo/ui";
-import { Image } from "@/components/image";
+import { ZoomableImage } from "@/components/zoomable-image";
 import { LocalPostSyncBadge } from "@/components/local-post-sync-badge";
 import { PostFeedIconButton } from "@/components/post-feed-icon-button";
 import { buildLocationLine, formatCapturedAtAgo } from "@/lib/post-display";
@@ -158,11 +158,12 @@ export function PostDetailContent({
       <ScrollView showsIndicators={false} style={{ height: pageHeight }}>
         <RNHostView matchContents>
           <View style={{ width, height: imageHeight }}>
-            <Image
-              resizeOnTap
+            <ZoomableImage
+              height={imageHeight}
               testID={`${testIDPrefix}-detail-image`}
               source={post.imageUrl ? { uri: post.imageUrl } : undefined}
               style={{ width, height: imageHeight }}
+              width={width}
             />
             {isLocalOnly && localSyncStatus ? (
               <LocalPostSyncBadge
