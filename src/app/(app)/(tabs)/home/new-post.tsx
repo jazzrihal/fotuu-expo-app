@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   StyleSheet,
-  Text,
+  Text as RNText,
   TouchableOpacity,
   useWindowDimensions,
   View,
@@ -10,13 +10,14 @@ import {
 import {
   Button,
   Column,
+  FieldGroup,
   Host,
   Icon,
   Picker,
   Row,
   RNHostView,
-  ScrollView,
-  Text as UiText,
+  Spacer,
+  Text,
   TextInput,
 } from "@expo/ui";
 import {
@@ -34,7 +35,10 @@ import { Stack, useRouter, useTheme } from "expo-router";
 import { useAuth } from "@/context/auth";
 import { resolvePostLocationParts } from "@/lib/location-label";
 import { buildLocationLine, formatCapturedAt } from "@/lib/post-display";
-import { type PostPrivacyScope } from "@/lib/posts";
+import {
+  DEFAULT_POST_PRIVACY_SCOPE,
+  type PostPrivacyScope,
+} from "@/lib/posts";
 import { profileDisplayName } from "@/lib/profile-display";
 import { saveLocalPost, queuePostForUpload } from "@/lib/post-manager";
 import { runSync } from "@/lib/sync-manager";
@@ -66,8 +70,9 @@ export default function NewPostScreen() {
   const [locationParts, setLocationParts] = useState<{ address?: string | null; city?: string | null; region?: string | null }>({});
   const [resolvingLocation, setResolvingLocation] = useState(false);
   const [caption, setCaption] = useState("");
-  const [privacyScope, setPrivacyScope] =
-    useState<PostPrivacyScope>("friends_only");
+  const [privacyScope, setPrivacyScope] = useState<PostPrivacyScope>(
+    DEFAULT_POST_PRIVACY_SCOPE,
+  );
   const [capturing, setCapturing] = useState(false);
   const [savedLocally, setSavedLocally] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -346,6 +351,13 @@ export default function NewPostScreen() {
   const submitError =
     savedLocally ? null : error ?? profileQuery.error?.message ?? createPostMutation.error?.message ?? null;
 
+  function handleDeleteLocation() {
+    setLatitude(undefined);
+    setLongitude(undefined);
+    setLocationLine(null);
+    setLocationParts({});
+  }
+
   if (!imageUri) {
     if (!permission) {
       return (
@@ -370,16 +382,16 @@ export default function NewPostScreen() {
             onDismiss={() => setCameraSheetOpen(false)}
             testID="new-post-camera-permission-actions"
           >
-            <UiText textStyle={{ textAlign: "center" }}>
+            <Text textStyle={{ textAlign: "center" }}>
               Grant access to the camera?
-            </UiText>
+            </Text>
             {submitError ? (
-              <UiText
+              <Text
                 testID="new-post-error"
                 textStyle={{ textAlign: "center" }}
               >
                 {submitError}
-              </UiText>
+              </Text>
             ) : null}
             <Row spacing={12} alignment="center">
               <Button
@@ -435,9 +447,9 @@ export default function NewPostScreen() {
               ) : null}
               {showZoomIndicator ? (
                 <View pointerEvents="none" style={styles.zoomIndicator}>
-                  <Text style={styles.zoomIndicatorText}>
+                  <RNText style={styles.zoomIndicatorText}>
                     {formatZoomLabel(zoom)}
-                  </Text>
+                  </RNText>
                 </View>
               ) : null}
             </View>
@@ -447,7 +459,7 @@ export default function NewPostScreen() {
           >
             {submitError ? (
               <Host matchContents>
-                <UiText
+                <Text
                   testID="new-post-error"
                   textStyle={{
                     color: colors.text as string,
@@ -455,7 +467,7 @@ export default function NewPostScreen() {
                   }}
                 >
                   {submitError}
-                </UiText>
+                </Text>
               </Host>
             ) : null}
             <View style={styles.controlsRow}>
@@ -552,36 +564,47 @@ export default function NewPostScreen() {
             />
           </RNHostView>
 
-          <Column
-            spacing={4}
-            style={{ paddingHorizontal: 12, paddingVertical: 8 }}
-          >
-            {displayName ? (
-              <UiText
-                testID="new-post-author"
-                textStyle={{ fontWeight: "600" }}
-              >
-                {displayName}
-              </UiText>
-            ) : null}
-            {resolvingLocation ? (
-              <UiText>Getting location…</UiText>
-            ) : locationLine ? (
-              <UiText testID="new-post-location">{locationLine}</UiText>
-            ) : null}
-            {capturedAt ? (
-              <UiText testID="new-post-captured-at">
-                {formatCapturedAt(capturedAt)}
-              </UiText>
-            ) : null}
-          </Column>
+          <Host style={{ flex: 1 }} ignoreSafeArea="keyboard">
+            <FieldGroup>
+              <FieldGroup.Section>
+                <Row spacing={8}>
+                  <Icon name="person.circle" size={16} />
+                  <Text testID="new-post-author">{displayName}</Text>
+                </Row>
+                <Row spacing={8}>
+                  <Icon name="calendar.badge.clock" size={16} />
+                  <Text testID="new-post-captured-at">
+                    {capturedAt ? formatCapturedAt(capturedAt) : ""}
+                  </Text>
+                </Row>
+              </FieldGroup.Section>
 
-          <Host ignoreSafeArea="keyboard" style={{ flex: 1 }}>
-            <ScrollView style={{ padding: 10 }}>
-              <Column
-                spacing={12}
-                style={{ paddingHorizontal: 12, paddingBottom: 8 }}
-              >
+              {resolvingLocation || locationLine ? (
+                <FieldGroup.Section title="Location">
+                  {resolvingLocation ? (
+                    <Row spacing={8}>
+                      <ActivityIndicator size="small" />
+                      <Text>Getting location…</Text>
+                    </Row>
+                  ) : null}
+                  {!resolvingLocation && locationLine ? (
+                    <Row spacing={8}>
+                      <Icon name="location.fill" size={16} />
+                      <Text testID="new-post-location">{locationLine}</Text>
+                      <Spacer flexible />
+                      <Button variant="text" onPress={handleDeleteLocation}>
+                        <Icon
+                          name="trash"
+                          size={16}
+                          accessibilityLabel="Remove location"
+                        />
+                      </Button>
+                    </Row>
+                  ) : null}
+                </FieldGroup.Section>
+              ) : null}
+
+              <FieldGroup.Section title="Caption">
                 <TextInput
                   testID="new-post-caption"
                   onChangeText={setCaption}
@@ -589,35 +612,36 @@ export default function NewPostScreen() {
                   maxLength={CAPTION_MAX_LENGTH}
                   multiline
                 />
+                <FieldGroup.SectionFooter>
+                  <Text textStyle={{ fontSize: 12, color: "#8E8E93" }}>
+                    {`${caption.length} / ${CAPTION_MAX_LENGTH}`}
+                  </Text>
+                </FieldGroup.SectionFooter>
+              </FieldGroup.Section>
 
-                <Column spacing={4}>
-                  <UiText>Who can see this?</UiText>
-                  <Host matchContents>
-                    <Picker
-                      testID="new-post-privacy-picker"
-                      selectedValue={privacyScope}
-                      onValueChange={(value) =>
-                        setPrivacyScope(value as PostPrivacyScope)
-                      }
-                      appearance="menu"
-                    >
-                      <Picker.Item label="Public" value="public" />
-                      <Picker.Item label="Friends" value="friends_only" />
-                      <Picker.Item label="Private" value="private" />
-                    </Picker>
-                  </Host>
-                </Column>
+              <FieldGroup.Section title="Visibility">
+                <Picker
+                  testID="new-post-privacy-picker"
+                  selectedValue={privacyScope}
+                  onValueChange={(value) =>
+                    setPrivacyScope(value as PostPrivacyScope)
+                  }
+                  appearance="menu"
+                >
+                  <Picker.Item label="Friends" value="friends_only" />
+                  <Picker.Item label="Public" value="public" />
+                  <Picker.Item label="Private" value="private" />
+                </Picker>
+              </FieldGroup.Section>
 
-                {submitError ? (
-                  <UiText
-                    testID="new-post-error"
-                    textStyle={{ color: "#DC2626" }}
-                  >
+              {submitError ? (
+                <FieldGroup.Section>
+                  <Text testID="new-post-error" textStyle={{ color: "#DC2626" }}>
                     {submitError}
-                  </UiText>
-                ) : null}
-              </Column>
-            </ScrollView>
+                  </Text>
+                </FieldGroup.Section>
+              ) : null}
+            </FieldGroup>
           </Host>
         </Column>
       </Host>

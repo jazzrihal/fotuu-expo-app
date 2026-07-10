@@ -29,6 +29,8 @@ export type PostDetail =
 
 export type PostPrivacyScope = Database['public']['Enums']['post_privacy_scope'];
 
+export const DEFAULT_POST_PRIVACY_SCOPE: PostPrivacyScope = 'friends_only';
+
 export type PostViewerEngagementSource = Pick<
   FeedPost | PostDetail | ProfileFeedPost | FriendsPost,
   'user_reaction' | 'is_pinned_by_current_user'
