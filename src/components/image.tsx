@@ -6,8 +6,9 @@ import { Pressable, StyleSheet } from "react-native";
 
 const SIMULATOR_BACKGROUND = "grey";
 
-type FotuuImageProps = ImageProps & {
+type FotuuImageProps = Omit<ImageProps, "onPress"> & {
   resizeOnTap?: boolean;
+  onPress?: () => void;
 };
 
 function toggleContentFit(fit: ImageContentFit): ImageContentFit {
@@ -22,6 +23,7 @@ function ImageComponent({
   style,
   contentFit = "cover",
   resizeOnTap = false,
+  onPress,
   testID,
   ...props
 }: FotuuImageProps) {
@@ -35,7 +37,8 @@ function ImageComponent({
 
   const handlePress = useCallback(() => {
     setActiveContentFit((current) => toggleContentFit(current));
-  }, []);
+    onPress?.();
+  }, [onPress]);
 
   const image = (
     <ExpoImage
@@ -46,7 +49,13 @@ function ImageComponent({
   );
 
   if (!resizeOnTap) {
-    return image;
+    return (
+      <ExpoImage
+        {...props}
+        contentFit={resolvedContentFit}
+        style={flattenedStyle}
+      />
+    );
   }
 
   return (

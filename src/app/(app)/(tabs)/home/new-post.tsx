@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Pressable,
   StyleSheet,
   Text as RNText,
   TouchableOpacity,
@@ -19,6 +20,7 @@ import {
   Spacer,
   Text,
   TextInput,
+  type TextInputRef,
 } from "@expo/ui";
 import {
   CameraView,
@@ -58,6 +60,7 @@ export default function NewPostScreen() {
   const { colors, dark } = useTheme();
   const cameraRef = useRef<CameraView>(null);
   const scrollRef = useRef<KeyboardAwareScrollViewRef>(null);
+  const captionRef = useRef<TextInputRef>(null);
   const shutterRingColor = dark
     ? "rgba(255, 255, 255, 0.3)"
     : "rgba(0, 0, 0, 0.12)";
@@ -76,6 +79,7 @@ export default function NewPostScreen() {
   );
   const [capturing, setCapturing] = useState(false);
   const [savedLocally, setSavedLocally] = useState(false);
+  const [captionFocused, setCaptionFocused] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [cameraSheetOpen, setCameraSheetOpen] = useState(true);
   const [zoom, setZoom] = useState(0);
@@ -355,6 +359,10 @@ export default function NewPostScreen() {
   const scrollToCaption = useCallback(() => {
     scrollRef.current?.scrollToEnd({ animated: true });
   }, []);
+
+  const blurCaption = useCallback(() => {
+    captionRef.current?.blur();
+  }, []);
   useKeyboardHandler({
     onEnd: (e) => {
       'worklet';
@@ -568,6 +576,7 @@ export default function NewPostScreen() {
         style={{ flex: 1 }}
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={{ flexGrow: 1 }}
+        onScrollBeginDrag={blurCaption}
       >
           <Image
             resizeOnTap
@@ -629,8 +638,11 @@ export default function NewPostScreen() {
 
               <FieldGroup.Section title="Caption">
                 <TextInput
+                  ref={captionRef}
                   testID="new-post-caption"
                   onChangeText={setCaption}
+                  onFocus={() => setCaptionFocused(true)}
+                  onBlur={() => setCaptionFocused(false)}
                   placeholder="Write a caption…"
                   maxLength={CAPTION_MAX_LENGTH}
                   multiline
@@ -667,6 +679,13 @@ export default function NewPostScreen() {
             </FieldGroup>
           </Host>
       </KeyboardAwareScrollView>
+      {captionFocused ? (
+        <Pressable
+          style={StyleSheet.absoluteFill}
+          onPress={blurCaption}
+          accessible={false}
+        />
+      ) : null}
       <Stack.Toolbar placement="left">
         <Stack.Toolbar.Button
           accessibilityLabel="Cancel"
