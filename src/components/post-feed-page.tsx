@@ -7,6 +7,7 @@ import {
   openUserProfile,
   type PostDetailTestIDPrefix,
 } from "@/lib/navigation";
+import { momentPicker$ } from "@/lib/moment-picker-store";
 import {
   getPostViewerEngagement,
   usePostQuery,
@@ -76,6 +77,28 @@ export const PostFeedPage = memo(function PostFeedPage({
 
   const localSyncStatus = isLocalOnly ? getLocalSyncStatus(post) : undefined;
 
+  const canExploreNearby = useMemo(
+    () =>
+      Number.isFinite(post.latitude) &&
+      Number.isFinite(post.longitude) &&
+      typeof post.captured_at === "string" &&
+      post.captured_at.length > 0,
+    [post.captured_at, post.latitude, post.longitude],
+  );
+
+  const handleExploreNearby = useCallback(() => {
+    momentPicker$.applied.set({
+      occurredAt: post.captured_at,
+      latitude: post.latitude,
+      longitude: post.longitude,
+      address: post.address ?? "",
+      city: post.city ?? "",
+      region: post.region ?? "",
+      country: post.country ?? "",
+    });
+    router.navigate("/(app)/(tabs)/home");
+  }, [post, router]);
+
   return (
     <PostDetailContent
       post={post}
@@ -91,6 +114,7 @@ export const PostFeedPage = memo(function PostFeedPage({
       actionError={actionError}
       isLocalOnly={isLocalOnly}
       localSyncStatus={localSyncStatus}
+      onExploreNearby={canExploreNearby ? handleExploreNearby : undefined}
     />
   );
 });

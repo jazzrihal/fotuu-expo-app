@@ -43,6 +43,7 @@ type PostDetailContentProps = {
   onUploadToCloud?: () => void;
   isLocalOnly?: boolean;
   localSyncStatus?: LocalPostStatus;
+  onExploreNearby?: () => void;
 };
 
 const CAPTION_LINE_HEIGHT = 22;
@@ -65,6 +66,7 @@ export function PostDetailContent({
   onUploadToCloud,
   isLocalOnly = false,
   localSyncStatus,
+  onExploreNearby,
 }: PostDetailContentProps) {
   const { width } = useWindowDimensions();
 
@@ -90,22 +92,31 @@ export function PostDetailContent({
           {post.display_name}
         </Text>
         <Spacer flexible />
-        {!isLocalOnly && (
-          <Row spacing={25} alignment="center">
+        <Row spacing={25} alignment="center">
+          {!isLocalOnly ? (
+            <>
+              <PostFeedIconButton
+                icon={isLiked ? "heart.fill" : "heart"}
+                accessibilityLabel={isLiked ? "Unlike" : "Like"}
+                disabled={actionsDisabled}
+                onPress={onToggleLike}
+              />
+              <PostFeedIconButton
+                icon={isPinned ? "pin.fill" : "pin"}
+                accessibilityLabel={isPinned ? "Unpin" : "Pin"}
+                disabled={actionsDisabled}
+                onPress={onTogglePin}
+              />
+            </>
+          ) : null}
+          {onExploreNearby ? (
             <PostFeedIconButton
-              icon={isLiked ? "heart.fill" : "heart"}
-              accessibilityLabel={isLiked ? "Unlike" : "Like"}
-              disabled={actionsDisabled}
-              onPress={onToggleLike}
+              icon="safari"
+              accessibilityLabel="Explore nearby"
+              onPress={onExploreNearby}
             />
-            <PostFeedIconButton
-              icon={isPinned ? "pin.fill" : "pin"}
-              accessibilityLabel={isPinned ? "Unpin" : "Pin"}
-              disabled={actionsDisabled}
-              onPress={onTogglePin}
-            />
-          </Row>
-        )}
+          ) : null}
+        </Row>
       </Row>
       <Text testID={`${testIDPrefix}-detail-date`}>
         {formatCapturedAtAgo(post.captured_at)}
