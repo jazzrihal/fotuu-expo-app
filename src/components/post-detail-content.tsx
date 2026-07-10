@@ -44,6 +44,7 @@ type PostDetailContentProps = {
   isLocalOnly?: boolean;
   localSyncStatus?: LocalPostStatus;
   onExploreNearby?: () => void;
+  exploreNearbyDisabled?: boolean;
 };
 
 const CAPTION_LINE_HEIGHT = 22;
@@ -67,6 +68,7 @@ export function PostDetailContent({
   isLocalOnly = false,
   localSyncStatus,
   onExploreNearby,
+  exploreNearbyDisabled = false,
 }: PostDetailContentProps) {
   const { width } = useWindowDimensions();
 
@@ -113,6 +115,7 @@ export function PostDetailContent({
             <PostFeedIconButton
               icon="safari"
               accessibilityLabel="Explore nearby"
+              disabled={exploreNearbyDisabled}
               onPress={onExploreNearby}
             />
           ) : null}

@@ -87,6 +87,9 @@ export const PostFeedPage = memo(function PostFeedPage({
   );
 
   const handleExploreNearby = useCallback(() => {
+    if (!canExploreNearby) {
+      return;
+    }
     momentPicker$.applied.set({
       occurredAt: post.captured_at,
       latitude: post.latitude,
@@ -97,7 +100,7 @@ export const PostFeedPage = memo(function PostFeedPage({
       country: post.country ?? "",
     });
     router.dismissTo("/(app)/(tabs)/home");
-  }, [post, router]);
+  }, [canExploreNearby, post, router]);
 
   return (
     <PostDetailContent
@@ -114,7 +117,8 @@ export const PostFeedPage = memo(function PostFeedPage({
       actionError={actionError}
       isLocalOnly={isLocalOnly}
       localSyncStatus={localSyncStatus}
-      onExploreNearby={canExploreNearby ? handleExploreNearby : undefined}
+      onExploreNearby={handleExploreNearby}
+      exploreNearbyDisabled={!canExploreNearby}
     />
   );
 });
