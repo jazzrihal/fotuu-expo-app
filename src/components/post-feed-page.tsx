@@ -96,7 +96,7 @@ export const PostFeedPage = memo(function PostFeedPage({
       region: post.region ?? "",
       country: post.country ?? "",
     });
-    router.navigate("/(app)/(tabs)/home");
+    router.dismissTo("/(app)/(tabs)/home");
   }, [post, router]);
 
   return (
