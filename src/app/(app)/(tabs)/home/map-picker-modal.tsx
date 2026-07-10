@@ -2,14 +2,16 @@ import { useCallback, useRef, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
-  Platform,
   Pressable,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from "react-native";
 import { Stack, useRouter } from "expo-router";
+import { useKeyboardHandler } from "react-native-keyboard-controller";
+import { runOnJS } from "react-native-reanimated";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import type { SearchBarCommands } from "react-native-screens";
 import { MapPicker, type MapCoordinates, type MapPickerHandle } from "@/components/map-picker";
 import { locationPicker$ } from "@/lib/location-picker-store";
 import {
@@ -23,17 +25,43 @@ const DEFAULT_COORDINATES: MapCoordinates = {
   longitude: -122.4194,
 };
 
+const SEARCH_BAR_HEIGHT = 52;
+const SUGGESTIONS_GAP = 8;
+const SEARCH_RESULTS_SPACING = 10;
+
 export default function MapPickerModal() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const mapRef = useRef<MapPickerHandle>(null);
+  const searchBarRef = useRef<SearchBarCommands>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const searchRequestRef = useRef(0);
 
   const initial = locationPicker$.initial.get() ?? DEFAULT_COORDINATES;
   const [draftLocation, setDraftLocation] = useState<MapCoordinates>(initial);
 
-  const [searchQuery, setSearchQuery] = useState("");
   const [suggestions, setSuggestions] = useState<SearchSuggestion[]>([]);
   const [isSearching, setIsSearching] = useState(false);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+
+  useKeyboardHandler(
+    {
+      onMove: (e) => {
+        "worklet";
+        runOnJS(setKeyboardHeight)(e.height);
+      },
+      onEnd: (e) => {
+        "worklet";
+        runOnJS(setKeyboardHeight)(e.height);
+      },
+    },
+    [],
+  );
+
+  const suggestionsBottom =
+    keyboardHeight > 0
+      ? keyboardHeight + SEARCH_BAR_HEIGHT + SUGGESTIONS_GAP
+      : insets.bottom + SEARCH_BAR_HEIGHT + SUGGESTIONS_GAP;
 
   function confirmLocation() {
     locationPicker$.confirmed.set(draftLocation);
@@ -42,28 +70,34 @@ export default function MapPickerModal() {
 
   const handleSearchChange = useCallback(
     (text: string) => {
-      setSearchQuery(text);
-      setSuggestions([]);
-
       if (debounceRef.current) clearTimeout(debounceRef.current);
 
       if (!text.trim()) {
+        searchRequestRef.current += 1;
+        setSuggestions([]);
         setIsSearching(false);
         return;
       }
 
       setIsSearching(true);
       debounceRef.current = setTimeout(async () => {
+        const requestId = ++searchRequestRef.current;
         try {
           const results = await getCompletions(text, {
             latitude: draftLocation.latitude,
             longitude: draftLocation.longitude,
           });
-          setSuggestions(results);
+          if (requestId === searchRequestRef.current) {
+            setSuggestions(results);
+          }
         } catch {
-          setSuggestions([]);
+          if (requestId === searchRequestRef.current) {
+            setSuggestions([]);
+          }
         } finally {
-          setIsSearching(false);
+          if (requestId === searchRequestRef.current) {
+            setIsSearching(false);
+          }
         }
       }, 300);
     },
@@ -72,7 +106,7 @@ export default function MapPickerModal() {
 
   const handleSuggestionPress = useCallback(
     async (suggestion: SearchSuggestion) => {
-      setSearchQuery(suggestion.title);
+      searchBarRef.current?.cancelSearch();
       setSuggestions([]);
       setIsSearching(true);
 
@@ -94,13 +128,13 @@ export default function MapPickerModal() {
   );
 
   const clearSearch = useCallback(() => {
-    setSearchQuery("");
+    searchRequestRef.current += 1;
     setSuggestions([]);
     setIsSearching(false);
     if (debounceRef.current) clearTimeout(debounceRef.current);
   }, []);
 
-  const showSuggestions = suggestions.length > 0;
+  const showSuggestionsPanel = suggestions.length > 0 || isSearching;
 
   return (
     <>
@@ -113,55 +147,62 @@ export default function MapPickerModal() {
           onCoordinatesChange={setDraftLocation}
         />
 
-        {Platform.OS === "ios" && (
-          <View style={styles.searchContainer} pointerEvents="box-none">
-            <View style={styles.searchBar}>
-              <TextInput
-                testID="map-picker-search"
-                style={styles.searchInput}
-                value={searchQuery}
-                onChangeText={handleSearchChange}
-                placeholder="Search for a place or address"
-                placeholderTextColor="#8e8e93"
-                returnKeyType="search"
-                clearButtonMode="while-editing"
-                autoCorrect={false}
-              />
-              {isSearching && (
-                <ActivityIndicator size="small" color="#8e8e93" style={styles.spinner} />
-              )}
-            </View>
-
-            {showSuggestions && (
-              <FlatList
-                style={styles.suggestionsList}
-                data={suggestions}
-                keyExtractor={(item, index) => `${item.title}-${index}`}
-                keyboardShouldPersistTaps="handled"
-                renderItem={({ item, index }) => (
-                  <Pressable
-                    style={({ pressed }) => [
-                      styles.suggestionItem,
-                      index === suggestions.length - 1 && styles.suggestionItemLast,
-                      pressed && styles.suggestionItemPressed,
-                    ]}
-                    onPress={() => handleSuggestionPress(item)}
-                  >
-                    <Text style={styles.suggestionTitle} numberOfLines={1}>
-                      {item.title}
+        {showSuggestionsPanel && (
+          <View
+            style={[styles.suggestionsContainer, { bottom: suggestionsBottom }]}
+            pointerEvents="box-none"
+          >
+            <FlatList
+              style={styles.suggestionsList}
+              data={suggestions}
+              inverted
+              keyExtractor={(item, index) => `${item.title}-${index}`}
+              keyboardShouldPersistTaps="handled"
+              ListHeaderComponent={
+                isSearching ? (
+                  <View style={styles.searchingRow}>
+                    <ActivityIndicator size="small" color="#8e8e93" />
+                  </View>
+                ) : null
+              }
+              renderItem={({ item, index }) => (
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.suggestionItem,
+                    index === 0 && styles.suggestionItemLast,
+                    pressed && styles.suggestionItemPressed,
+                  ]}
+                  onPress={() => handleSuggestionPress(item)}
+                >
+                  <Text style={styles.suggestionTitle} numberOfLines={1}>
+                    {item.title}
+                  </Text>
+                  {item.subtitle ? (
+                    <Text style={styles.suggestionSubtitle} numberOfLines={1}>
+                      {item.subtitle}
                     </Text>
-                    {item.subtitle ? (
-                      <Text style={styles.suggestionSubtitle} numberOfLines={1}>
-                        {item.subtitle}
-                      </Text>
-                    ) : null}
-                  </Pressable>
-                )}
-              />
-            )}
+                  ) : null}
+                </Pressable>
+              )}
+            />
           </View>
         )}
       </View>
+
+      <Stack.SearchBar
+        ref={searchBarRef}
+        placeholder="Search for a place or address"
+        autoCapitalize="none"
+        placement="integratedButton"
+        allowToolbarIntegration
+        hideNavigationBar={false}
+        hideWhenScrolling={false}
+        onChangeText={(e) => handleSearchChange(e.nativeEvent.text)}
+        onCancelButtonPress={clearSearch}
+      />
+      <Stack.Toolbar>
+        <Stack.Toolbar.SearchBarSlot />
+      </Stack.Toolbar>
 
       <Stack.Toolbar placement="left">
         <Stack.Toolbar.Button
@@ -194,44 +235,25 @@ const styles = StyleSheet.create({
   map: {
     flex: 1,
   },
-  searchContainer: {
+  suggestionsContainer: {
     position: "absolute",
-    top: 12,
     left: 12,
     right: 12,
-  },
-  searchBar: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "rgba(255,255,255,0.97)",
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 6,
-    elevation: 4,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: 16,
-    color: "#000",
-    padding: 0,
-  },
-  spinner: {
-    marginLeft: 8,
   },
   suggestionsList: {
     backgroundColor: "rgba(255,255,255,0.97)",
     borderRadius: 12,
-    marginTop: 6,
+    marginBottom: SEARCH_RESULTS_SPACING,
     maxHeight: 280,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.12,
     shadowRadius: 6,
     elevation: 4,
+  },
+  searchingRow: {
+    alignItems: "center",
+    paddingVertical: 12,
   },
   suggestionItem: {
     paddingHorizontal: 14,

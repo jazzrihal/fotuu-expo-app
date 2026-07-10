@@ -38,8 +38,7 @@ env:
 - tapOn:
     id: "home-feed-location"
 - assertVisible: "Pick Location"
-- tapOn:
-    id: "map-picker-search"
+- tapOn: "Search for a place or address"
 - inputText: "Brooklyn"
 - extendedWaitUntil:
     visible: "Brooklyn"
