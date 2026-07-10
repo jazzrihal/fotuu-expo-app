@@ -604,7 +604,22 @@ export default function NewPostScreen() {
               </FieldGroup.Section>
 
               {resolvingLocation || locationLine ? (
-                <FieldGroup.Section title="Location">
+                <FieldGroup.Section>
+                  <FieldGroup.SectionHeader>
+                    <Row spacing={8} alignment="center">
+                      <Text>Location</Text>
+                      <Spacer flexible />
+                      {!resolvingLocation && locationLine ? (
+                        <Button variant="text" onPress={handleDeleteLocation}>
+                          <Icon
+                            name="trash"
+                            size={14}
+                            accessibilityLabel="Remove location"
+                          />
+                        </Button>
+                      ) : null}
+                    </Row>
+                  </FieldGroup.SectionHeader>
                   {resolvingLocation ? (
                     <Row spacing={8}>
                       <ActivityIndicator size="small" />
@@ -615,14 +630,6 @@ export default function NewPostScreen() {
                     <Row spacing={8}>
                       <Icon name="location.fill" size={16} />
                       <Text testID="new-post-location">{locationLine}</Text>
-                      <Spacer flexible />
-                      <Button variant="text" onPress={handleDeleteLocation}>
-                        <Icon
-                          name="trash"
-                          size={16}
-                          accessibilityLabel="Remove location"
-                        />
-                      </Button>
                     </Row>
                   ) : null}
                   {!resolvingLocation && locationLine && latitude != null && longitude != null ? (
