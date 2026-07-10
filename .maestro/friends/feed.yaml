@@ -17,8 +17,20 @@ env:
     commands:
       - assertVisible:
           id: "friends-feed"
+      - scrollUntilVisible:
+          element:
+            id: "friends-feed-section-bob-row-0"
+          direction: DOWN
+      - assertVisible:
+          id: "friends-feed-section-bob-row-0"
+      - scrollUntilVisible:
+          element:
+            id: "friends-feed-section-bob-row-1"
+          direction: DOWN
+      - assertVisible:
+          id: "friends-feed-section-bob-row-1"
       - tapOn:
-          point: "15%,40%"
+          id: "friends-feed-section-bob-row-1"
       - assertVisible:
           id: "friends-post-feed-pager"
       - assertVisible:

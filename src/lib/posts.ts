@@ -1,19 +1,19 @@
-import { supabase } from '@/lib/supabase';
-import type { Database } from '@/lib/database.types';
-import { toPostgisPoint } from '@/lib/postgis';
+import { supabase } from "@/lib/supabase";
+import type { Database } from "@/lib/database.types";
+import { toPostgisPoint } from "@/lib/postgis";
 
 export type FeedPost =
-  Database['public']['Functions']['list_feed_posts']['Returns'][number];
+  Database["public"]["Functions"]["list_feed_posts"]["Returns"][number];
 
 export type ProfileFeedPost =
-  Database['public']['Functions']['list_profile_feed_posts']['Returns'][number];
+  Database["public"]["Functions"]["list_profile_feed_posts"]["Returns"][number];
 
 export type FriendsPost =
-  Database['public']['Functions']['list_friends_posts']['Returns'][number];
+  Database["public"]["Functions"]["list_friends_posts"]["Returns"][number];
 
 export type FriendsGroupedPost = Omit<
   FriendsPost,
-  'author_id' | 'display_name' | 'username'
+  "author_id" | "display_name" | "username"
 >;
 
 export type FriendsPostsGroup = {
@@ -25,25 +25,26 @@ export type FriendsPostsGroup = {
 };
 
 export type PostDetail =
-  Database['public']['Functions']['get_post']['Returns'][number];
+  Database["public"]["Functions"]["get_post"]["Returns"][number];
 
-export type PostPrivacyScope = Database['public']['Enums']['post_privacy_scope'];
+export type PostPrivacyScope =
+  Database["public"]["Enums"]["post_privacy_scope"];
 
-export const DEFAULT_POST_PRIVACY_SCOPE: PostPrivacyScope = 'friends_only';
+export const DEFAULT_POST_PRIVACY_SCOPE: PostPrivacyScope = "friends_only";
 
 export type PostViewerEngagementSource = Pick<
   FeedPost | PostDetail | ProfileFeedPost | FriendsPost,
-  'user_reaction' | 'is_pinned_by_current_user'
+  "user_reaction" | "is_pinned_by_current_user"
 >;
 
 export function getPostViewerEngagement(post: PostViewerEngagementSource) {
   return {
-    isLiked: post.user_reaction === 'like',
+    isLiked: post.user_reaction === "like",
     isPinned: post.is_pinned_by_current_user,
   };
 }
 
-const POST_IMAGES_BUCKET = 'post-images';
+const POST_IMAGES_BUCKET = "post-images";
 const SIGNED_URL_TTL_SECONDS = 3600;
 
 function rpcErrorMessage(error: { message: string } | null): string | null {
@@ -51,18 +52,21 @@ function rpcErrorMessage(error: { message: string } | null): string | null {
 }
 
 function randomUuid(): string {
-  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+  if (
+    typeof crypto !== "undefined" &&
+    typeof crypto.randomUUID === "function"
+  ) {
     return crypto.randomUUID();
   }
 
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (char) => {
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (char) => {
     const random = (Math.random() * 16) | 0;
-    const value = char === 'x' ? random : (random & 0x3) | 0x8;
+    const value = char === "x" ? random : (random & 0x3) | 0x8;
     return value.toString(16);
   });
 }
 
-export function buildPostImagePath(userId: string, extension = 'jpg'): string {
+export function buildPostImagePath(userId: string, extension = "jpg"): string {
   return `${userId}/${randomUuid()}.${extension}`;
 }
 
@@ -79,17 +83,19 @@ export async function uploadPostImage(
     // and Supabase storage accepts ArrayBuffer as a valid upload body.
     const arrayBuffer = await new Promise<ArrayBuffer>((resolve, reject) => {
       const xhr = new XMLHttpRequest();
-      xhr.responseType = 'arraybuffer';
+      xhr.responseType = "arraybuffer";
       xhr.onload = () => resolve(xhr.response as ArrayBuffer);
-      xhr.onerror = () => reject(new Error('Failed to read image file'));
-      xhr.open('GET', localUri);
+      xhr.onerror = () => reject(new Error("Failed to read image file"));
+      xhr.open("GET", localUri);
       xhr.send();
     });
 
-    const { error } = await supabase.storage.from(POST_IMAGES_BUCKET).upload(path, arrayBuffer, {
-      contentType: 'image/jpeg',
-      upsert: false,
-    });
+    const { error } = await supabase.storage
+      .from(POST_IMAGES_BUCKET)
+      .upload(path, arrayBuffer, {
+        contentType: "image/jpeg",
+        upsert: false,
+      });
 
     if (error) {
       return { path: null, error: error.message };
@@ -97,7 +103,8 @@ export async function uploadPostImage(
 
     return { path, error: null };
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to upload image';
+    const message =
+      error instanceof Error ? error.message : "Failed to upload image";
     return { path: null, error: message };
   }
 }
@@ -114,7 +121,7 @@ export type CreatePostInput = {
 export async function createPost(
   input: CreatePostInput,
 ): Promise<{ data: { id: string } | null; error: string | null }> {
-  const insert: Database['public']['Tables']['posts']['Insert'] = {
+  const insert: Database["public"]["Tables"]["posts"]["Insert"] = {
     storage_object_path: input.storagePath,
     captured_at: input.capturedAt,
     caption: input.caption?.trim() || null,
@@ -131,9 +138,9 @@ export async function createPost(
   }
 
   const { data, error } = await supabase
-    .from('posts')
+    .from("posts")
     .insert(insert)
-    .select('id')
+    .select("id")
     .single();
 
   return { data, error: rpcErrorMessage(error) };
@@ -143,7 +150,7 @@ export async function listProfileFeedPosts(params: {
   profileUserId: string;
   limit?: number;
 }): Promise<{ data: ProfileFeedPost[] | null; error: string | null }> {
-  const { data, error } = await supabase.rpc('list_profile_feed_posts', {
+  const { data, error } = await supabase.rpc("list_profile_feed_posts", {
     p_profile_user_id: params.profileUserId,
     p_limit: params.limit ?? 30,
   });
@@ -158,7 +165,7 @@ export async function listFeedPosts(params: {
   limit?: number;
   maxDistanceMeters?: number;
 }): Promise<{ data: FeedPost[] | null; error: string | null }> {
-  const { data, error } = await supabase.rpc('list_feed_posts', {
+  const { data, error } = await supabase.rpc("list_feed_posts", {
     p_at: params.at,
     p_latitude: params.latitude,
     p_longitude: params.longitude,
@@ -171,20 +178,20 @@ export async function listFeedPosts(params: {
 
 function isFriendsGroupedPost(value: unknown): value is FriendsGroupedPost {
   return (
-    typeof value === 'object' &&
+    typeof value === "object" &&
     value !== null &&
-    typeof (value as FriendsGroupedPost).id === 'string' &&
-    typeof (value as FriendsGroupedPost).storage_object_path === 'string'
+    typeof (value as FriendsGroupedPost).id === "string" &&
+    typeof (value as FriendsGroupedPost).storage_object_path === "string"
   );
 }
 
 function isFriendsPostsGroup(value: unknown): value is FriendsPostsGroup {
   return (
-    typeof value === 'object' &&
+    typeof value === "object" &&
     value !== null &&
-    typeof (value as FriendsPostsGroup).author_id === 'string' &&
-    typeof (value as FriendsPostsGroup).username === 'string' &&
-    typeof (value as FriendsPostsGroup).display_name === 'string' &&
+    typeof (value as FriendsPostsGroup).author_id === "string" &&
+    typeof (value as FriendsPostsGroup).username === "string" &&
+    typeof (value as FriendsPostsGroup).display_name === "string" &&
     Array.isArray((value as FriendsPostsGroup).posts) &&
     (value as FriendsPostsGroup).posts.every(isFriendsGroupedPost)
   );
@@ -203,7 +210,7 @@ function parseFriendsPostsGroups(data: unknown): FriendsPostsGroup[] | null {
 }
 
 export function enrichGroupedPost(
-  group: Pick<FriendsPostsGroup, 'author_id' | 'display_name' | 'username'>,
+  group: Pick<FriendsPostsGroup, "author_id" | "display_name" | "username">,
   post: FriendsGroupedPost,
   imageUrl?: string,
 ): FriendsPost & { imageUrl?: string } {
@@ -217,7 +224,9 @@ export function enrichGroupedPost(
 }
 
 export function flattenFriendsPostsGrouped(
-  groups: Array<FriendsPostsGroup & { posts: Array<FriendsPost & { imageUrl?: string }> }>,
+  groups: Array<
+    FriendsPostsGroup & { posts: Array<FriendsPost & { imageUrl?: string }> }
+  >,
 ): Array<FriendsPost & { imageUrl?: string }> {
   return groups.flatMap((group) => group.posts);
 }
@@ -225,8 +234,8 @@ export function flattenFriendsPostsGrouped(
 export async function listFriendsPostsGrouped(params?: {
   recentWithin?: string;
 }): Promise<{ data: FriendsPostsGroup[] | null; error: string | null }> {
-  const { data, error } = await supabase.rpc('list_friends_posts_grouped', {
-    p_recent_within: params?.recentWithin ?? '7 days',
+  const { data, error } = await supabase.rpc("list_friends_posts_grouped", {
+    p_recent_within: params?.recentWithin ?? "14 days",
   });
 
   if (error) {
@@ -235,7 +244,7 @@ export async function listFriendsPostsGrouped(params?: {
 
   const groups = parseFriendsPostsGroups(data);
   if (!groups) {
-    return { data: null, error: 'Invalid friends feed response' };
+    return { data: null, error: "Invalid friends feed response" };
   }
 
   return { data: groups, error: null };
@@ -278,7 +287,7 @@ async function getCurrentUserId(): Promise<string | null> {
 export async function getPost(
   postId: string,
 ): Promise<{ data: PostDetail | null; error: string | null }> {
-  const { data, error } = await supabase.rpc('get_post', { p_post_id: postId });
+  const { data, error } = await supabase.rpc("get_post", { p_post_id: postId });
 
   return { data: data?.[0] ?? null, error: rpcErrorMessage(error) };
 }
@@ -288,16 +297,16 @@ export async function likePost(
 ): Promise<{ error: string | null }> {
   const userId = await getCurrentUserId();
   if (!userId) {
-    return { error: 'Not signed in' };
+    return { error: "Not signed in" };
   }
 
-  const { error } = await supabase.from('post_reactions').upsert(
+  const { error } = await supabase.from("post_reactions").upsert(
     {
       post_id: postId,
       user_id: userId,
-      reaction_type: 'like',
+      reaction_type: "like",
     },
-    { onConflict: 'user_id,post_id' },
+    { onConflict: "user_id,post_id" },
   );
 
   return { error: rpcErrorMessage(error) };
@@ -308,14 +317,14 @@ export async function unlikePost(
 ): Promise<{ error: string | null }> {
   const userId = await getCurrentUserId();
   if (!userId) {
-    return { error: 'Not signed in' };
+    return { error: "Not signed in" };
   }
 
   const { error } = await supabase
-    .from('post_reactions')
+    .from("post_reactions")
     .delete()
-    .eq('post_id', postId)
-    .eq('user_id', userId);
+    .eq("post_id", postId)
+    .eq("user_id", userId);
 
   return { error: rpcErrorMessage(error) };
 }
@@ -323,7 +332,7 @@ export async function unlikePost(
 export async function pinPost(
   postId: string,
 ): Promise<{ error: string | null }> {
-  const { error } = await supabase.rpc('pin_post', { p_post_id: postId });
+  const { error } = await supabase.rpc("pin_post", { p_post_id: postId });
 
   return { error: rpcErrorMessage(error) };
 }
@@ -331,7 +340,7 @@ export async function pinPost(
 export async function unpinPost(
   postId: string,
 ): Promise<{ error: string | null }> {
-  const { error } = await supabase.rpc('unpin_post', { p_post_id: postId });
+  const { error } = await supabase.rpc("unpin_post", { p_post_id: postId });
 
   return { error: rpcErrorMessage(error) };
 }

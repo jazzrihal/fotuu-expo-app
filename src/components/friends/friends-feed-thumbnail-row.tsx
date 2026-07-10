@@ -37,6 +37,8 @@ export function getFriendsFeedAndroidListItemOffset(rowHeight: number): {
 }
 
 const GRID_GAP = 1;
+const FRIENDS_FEED_COLUMNS = 3;
+export const FRIENDS_FEED_ROW_GAP = GRID_GAP;
 
 /** Clears rounded FieldGroup row corners (overflow: hidden on slot). */
 const FRIENDS_FEED_PIN_BADGE_INSET = { bottom: 18, right: 18 };
@@ -58,14 +60,16 @@ function getFriendsFeedThumbnailLayout(postCount: number, screenWidth: number) {
 }
 
 export function getFriendsFeedThumbnailRowHeight(
-  postCount: number,
+  _postCount: number,
   screenWidth: number,
 ): number {
-  return getFriendsFeedThumbnailLayout(postCount, screenWidth).tileSize;
+  void _postCount;
+  return getFriendsFeedThumbnailLayout(FRIENDS_FEED_COLUMNS, screenWidth).tileSize;
 }
 
 type FriendsFeedThumbnailRowProps = {
   posts: FriendsPostWithImage[];
+  testID: string;
   testIDPrefix: string;
   onPostPress: (post: FriendsPostWithImage) => void;
   screenWidth?: number;
@@ -73,6 +77,7 @@ type FriendsFeedThumbnailRowProps = {
 
 export function FriendsFeedThumbnailRow({
   posts,
+  testID,
   testIDPrefix,
   onPostPress,
   screenWidth: screenWidthProp,
@@ -85,6 +90,10 @@ export function FriendsFeedThumbnailRow({
     posts.length,
     screenWidth,
   );
+  const rowTileHeight = getFriendsFeedThumbnailRowHeight(
+    FRIENDS_FEED_COLUMNS,
+    screenWidth,
+  );
 
   if (posts.length === 0) {
     return null;
@@ -92,11 +101,12 @@ export function FriendsFeedThumbnailRow({
 
   return (
     <View
+      testID={testID}
       style={[
         styles.row,
         {
           width: screenWidth,
-          height: tileSize,
+          height: rowTileHeight,
           backgroundColor: gridSeparatorColor,
         },
       ]}
@@ -112,14 +122,14 @@ export function FriendsFeedThumbnailRow({
             onPress={() => onPostPress(post)}
             style={{
               width: tileWidth,
-              height: tileSize,
+              height: rowTileHeight,
               marginRight: isLast ? 0 : GRID_GAP,
             }}
           >
             <Image
               recyclingKey={post.id}
               source={post.imageUrl ? { uri: post.imageUrl } : undefined}
-              style={{ width: tileWidth, height: tileSize }}
+              style={{ width: tileWidth, height: rowTileHeight }}
               contentFit="cover"
             />
             {post.is_pinned_by_current_user ? (

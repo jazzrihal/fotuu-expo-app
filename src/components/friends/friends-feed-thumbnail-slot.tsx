@@ -1,6 +1,7 @@
 import { StyleSheet, View } from 'react-native';
 import { RNHostView } from '@expo/ui';
 import {
+  FRIENDS_FEED_ROW_GAP,
   FRIENDS_FEED_SECTION_ROW_INSET,
   FriendsFeedThumbnailRow,
 } from '@/components/friends/friends-feed-thumbnail-row';
@@ -10,6 +11,8 @@ export type FriendsFeedThumbnailSlotProps = {
   posts: FriendsPostWithImage[];
   screenWidth: number;
   rowHeight: number;
+  isLastRow: boolean;
+  testID: string;
   testIDPrefix: string;
   onPostPress: (post: FriendsPostWithImage) => void;
 };
@@ -18,9 +21,13 @@ export function FriendsFeedThumbnailSlot({
   posts,
   screenWidth,
   rowHeight,
+  isLastRow,
+  testID,
   testIDPrefix,
   onPostPress,
 }: FriendsFeedThumbnailSlotProps) {
+  const slotHeight = rowHeight + (isLastRow ? 0 : FRIENDS_FEED_ROW_GAP);
+
   return (
     <RNHostView matchContents>
       <View
@@ -28,7 +35,7 @@ export function FriendsFeedThumbnailSlot({
           styles.slot,
           {
             width: screenWidth,
-            height: rowHeight,
+            height: slotHeight,
             marginHorizontal: -FRIENDS_FEED_SECTION_ROW_INSET,
           },
         ]}
@@ -36,6 +43,7 @@ export function FriendsFeedThumbnailSlot({
         <FriendsFeedThumbnailRow
           posts={posts}
           screenWidth={screenWidth}
+          testID={testID}
           testIDPrefix={testIDPrefix}
           onPostPress={onPostPress}
         />

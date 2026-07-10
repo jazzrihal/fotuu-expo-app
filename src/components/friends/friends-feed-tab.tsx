@@ -3,6 +3,7 @@ import { ActivityIndicator, StyleSheet, useWindowDimensions } from 'react-native
 import { FieldGroup, Host, Text } from '@expo/ui';
 import { useRouter } from 'expo-router';
 import { Empty } from '@/components/empty';
+import { chunkFriendsFeedPosts } from '@/components/friends/friends-feed-rows';
 import { FriendsFeedThumbnailSlot } from '@/components/friends/friends-feed-thumbnail-slot';
 import { getFriendsFeedThumbnailRowHeight } from '@/components/friends/friends-feed-thumbnail-row';
 import { useAuth } from '@/context/auth';
@@ -23,9 +24,9 @@ export function FriendsFeedTab() {
 
   useRefreshOnFocus(queryKeys.friendsPosts());
 
-  const groups = feedQuery.data?.groups ?? [];
+  const groups = feedQuery.data?.groups;
   const flattenedPosts = useMemo(
-    () => flattenFriendsPostsGrouped(groups),
+    () => flattenFriendsPostsGrouped(groups ?? []),
     [groups],
   );
 
@@ -81,40 +82,45 @@ export function FriendsFeedTab() {
   return (
     <Host testID="friends-feed" useViewportSizeMeasurement style={styles.feed}>
       <FieldGroup>
-        {groups.map((group) => {
-          const rowHeight = getFriendsFeedThumbnailRowHeight(
-            group.posts.length,
-            screenWidth,
-          );
+        {groups?.map((group) => {
+          const postRows = chunkFriendsFeedPosts(group.posts);
 
           return (
-          <FieldGroup.Section
-            key={group.author_id}
-            testID={`friends-feed-section-${group.username}`}
-          >
-            <FieldGroup.SectionHeader>
-              <Text
-                testID={`friends-feed-section-${group.username}-name`}
-                textStyle={{ fontWeight: '600' }}
-                onPress={() =>
-                  handleOpenProfile({
-                    id: group.author_id,
-                    displayName: group.display_name,
-                    username: group.username,
-                  })
-                }
-              >
-                {group.display_name}
-              </Text>
-            </FieldGroup.SectionHeader>
-            <FriendsFeedThumbnailSlot
-              posts={group.posts}
-              screenWidth={screenWidth}
-              rowHeight={rowHeight}
-              testIDPrefix="friends-feed"
-              onPostPress={handleOpenPostDetail}
-            />
-          </FieldGroup.Section>
+            <FieldGroup.Section
+              key={group.author_id}
+              testID={`friends-feed-section-${group.username}`}
+            >
+              <FieldGroup.SectionHeader>
+                <Text
+                  testID={`friends-feed-section-${group.username}-name`}
+                  textStyle={{ fontWeight: '600' }}
+                  onPress={() =>
+                    handleOpenProfile({
+                      id: group.author_id,
+                      displayName: group.display_name,
+                      username: group.username,
+                    })
+                  }
+                >
+                  {group.display_name}
+                </Text>
+              </FieldGroup.SectionHeader>
+              {postRows.map((posts, rowIndex) => (
+                <FriendsFeedThumbnailSlot
+                  key={`${group.author_id}-${rowIndex}`}
+                  posts={posts}
+                  screenWidth={screenWidth}
+                  rowHeight={getFriendsFeedThumbnailRowHeight(
+                    posts.length,
+                    screenWidth,
+                  )}
+                  isLastRow={rowIndex === postRows.length - 1}
+                  testID={`friends-feed-section-${group.username}-row-${rowIndex}`}
+                  testIDPrefix="friends-feed"
+                  onPostPress={handleOpenPostDetail}
+                />
+              ))}
+            </FieldGroup.Section>
           );
         })}
       </FieldGroup>
